@@ -1,0 +1,6 @@
+go test -run ^TestCreateDB$
+go test -run ^TestOpenDB$
+go test -run ^TestLoadPageOne$
+go test -run ^TestSaveNewPage$
+go test -run ^TestLoadPage$
+go test -run ^TestSavePage$
