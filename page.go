@@ -8,9 +8,9 @@ import (
 const (
 	dbPageSize        uint16 = 4096
 	dbHdrSize         uint16 = 6
-	dbPageHdrSize     uint16 = 9
+	dbPageHdrSize     uint16 = 11
 	dbNullPage        uint32 = 0
-	dbMaxLeafCellSize uint16 = 4085
+	dbMaxLeafCellSize uint16 = dbPageSize - dbPageHdrSize - sizeofCellOff
 )
 
 const (
@@ -19,25 +19,42 @@ const (
 )
 
 const (
-	offsetofPageType           = 0
-	offsetofPageNumFreeBytes   = 1
-	offsetofPageLastPtr        = 3
-	offsetofPageNumCells       = 7
-	offsetofPageCellOffsets    = 9
-	offsetofPageOneDbPgSize    = 0
-	offsetofPageOneDbFreePgPtr = 2
-	sizeofPageType             = 1
-	sizeofPageNumFreeBytes     = 2
-	sizeofPageLastPtr          = 4
-	sizeofPageNumCells         = 2
-	sizeofPageCellOffset       = 2
-	sizeofPageCellKey          = 4
-	sizeofPageCellPtr          = 4
-	sizeofPageCellPayloadSize  = 2
-	sizeofPageOneDbPgSize      = 2
-	sizeofPageOneDbFreePgPtr   = 4
-	sizeofPageOneCellTableName = 32
+	offsetofPageType         = 0
+	offsetofNumFreeBytes     = 1
+	offsetofLastPtr          = 3
+	offsetofNumCells         = 7
+	offsetofFirstFreeBlkOff  = 9
+	offsetofCellOffArr       = 11
+	offsetofDbPgSize         = 0
+	offsetofDbFirstFreePgPtr = 2
+	sizeofPageType           = 1
+	sizeofNumFreeBytes       = 2
+	sizeofLastPtr            = 4
+	sizeofNumCells           = 2
+	sizeofFirstFreeBlkOff    = 2
+	sizeofCellOff            = 2
+	sizeofCellKey            = 4
+	sizeofCellPtr            = 4
+	sizeofCellPayloadSize    = 2
+	sizeofCellTableName      = 32
+	sizeofBlkNextOff         = 2
+	sizeofBlkSize            = 2
+	sizeofDbPgSize           = 2
+	sizeofDbFirstFreePgPtr   = 4
 )
+
+type freeBlk struct {
+	offset  uint16
+	size    uint16
+	nextBlk *freeBlk
+}
+
+type cell struct {
+	key         uint32
+	ptr         uint32
+	payloadSize uint16
+	payload     []byte
+}
 
 type page struct {
 	id          uint32
@@ -45,8 +62,9 @@ type page struct {
 	nFreeBytes  uint16
 	lastPtr     uint32
 	nCells      uint16
-	cellOffsets []uint16
-	cells       []byte
+	freeBlkList *freeBlk
+	cellOffArr  []uint16
+	cells       map[uint16]cell
 }
 
 type pageOne struct {
@@ -65,7 +83,7 @@ func createPageOne() *pageOne {
 		pSize:        dbPageSize,
 		firstFreePtr: 2,
 		pType:        leafPage,
-		nFreeBytes:   dbPageSize - dbPageHdrSize - dbHdrSize,
+		nFreeBytes:   dbPageSize - 9 - dbHdrSize,
 		lastPtr:      dbNullPage,
 		nCells:       0,
 		cellOffsets:  []uint16{},
@@ -79,13 +97,13 @@ func createPage(pType uint8, firstFreePtr *uint32) (*page, error) {
 		return nil, errors.New("invalid page type")
 	}
 	p := &page{
-		id:          *firstFreePtr,
-		pType:       pType,
-		nFreeBytes:  dbPageSize - dbPageHdrSize,
-		lastPtr:     dbNullPage,
-		nCells:      0,
-		cellOffsets: []uint16{},
-		cells:       []byte{},
+		id:         *firstFreePtr,
+		pType:      pType,
+		nFreeBytes: dbPageSize - dbPageHdrSize,
+		lastPtr:    dbNullPage,
+		nCells:     0,
+		cellOffArr: []uint16{},
+		cells:      map[uint16]cell{},
 	}
 	atomic.AddUint32(firstFreePtr, 1)
 	return p, nil

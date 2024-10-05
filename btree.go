@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
 )
 
@@ -15,8 +13,8 @@ func findPage(key uint32, root *page) []uint32 { // returns page numbers from th
 		ind := int(cur.nCells)
 		for l <= r { // binary search
 			m := (l + r) / 2
-			start := len(cur.cells) - (int(dbPageSize) - int(cur.cellOffsets[m]))
-			k := binary.BigEndian.Uint32(cur.cells[start : start+sizeofPageCellKey])
+			c := cur.cells[cur.cellOffArr[m]]
+			k := c.key
 			if k == key {
 				ind = m + 1
 				break
@@ -34,8 +32,8 @@ func findPage(key uint32, root *page) []uint32 { // returns page numbers from th
 		if ind == int(cur.nCells) {
 			ptr = cur.lastPtr
 		} else {
-			start := len(cur.cells) - (int(dbPageSize) - int(cur.cellOffsets[ind]))
-			ptr = binary.BigEndian.Uint32(cur.cells[start+sizeofPageCellKey : start+sizeofPageCellKey+sizeofPageCellPtr])
+			c := cur.cells[cur.cellOffArr[ind]]
+			ptr = c.ptr
 		}
 
 		var err error
@@ -60,11 +58,10 @@ func find(key uint32, root *page) ([]byte, uint32) { // returns raw tuple data a
 	r := int(pg.nCells) - 1
 	for l <= r { // binary search
 		m := (l + r) / 2
-		start := len(pg.cells) - (int(dbPageSize) - int(pg.cellOffsets[m]))
-		k := binary.BigEndian.Uint32(pg.cells[start : start+sizeofPageCellKey])
+		c := pg.cells[pg.cellOffArr[m]]
+		k := c.key
 		if k == key {
-			payloadSize := int(binary.BigEndian.Uint16(pg.cells[start+sizeofPageCellKey : start+sizeofPageCellKey+sizeofPageCellPayloadSize]))
-			return pg.cells[start+sizeofPageCellKey+sizeofPageCellPayloadSize : start+sizeofPageCellKey+sizeofPageCellPayloadSize+payloadSize], pg.id
+			return c.payload, pg.id
 		}
 		if k < key {
 			l = m + 1
@@ -82,8 +79,8 @@ func insertIntoLeaf(pg *page, key uint32, payload []byte) error {
 	ind := int(pg.nCells) // index of 1st cell with a key > new key, is equal to the no. of cells if none found
 	for l <= r {
 		m := (l + r) / 2
-		start := len(pg.cells) - (int(dbPageSize) - int(pg.cellOffsets[m]))
-		k := binary.BigEndian.Uint32(pg.cells[start : start+sizeofPageCellKey])
+		c := pg.cells[pg.cellOffArr[m]]
+		k := c.key
 		if k == key {
 			return errors.New("the key is not unique")
 		}
@@ -96,34 +93,41 @@ func insertIntoLeaf(pg *page, key uint32, payload []byte) error {
 		}
 	}
 
-	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, key)
-	binary.Write(buf, binary.BigEndian, uint16(len(payload))) // because payload size is stored in 2 bytes
-	binary.Write(buf, binary.BigEndian, payload)
-	binary.Write(buf, binary.BigEndian, pg.cells)
-
-	cellSize := sizeofPageCellKey + sizeofPageCellPayloadSize + len(payload)
-	cellOffset := dbPageHdrSize + pg.nCells*sizeofPageCellOffset + pg.nFreeBytes - uint16(cellSize)
-
-	if ind == int(pg.nCells) { // append new cell offset at the end of the cell offsets array
-		pg.cellOffsets = append(pg.cellOffsets, cellOffset)
-	} else { // push cell offsets starting from [ind] forward one place & put new cell at [ind]
-		pg.cellOffsets = append(pg.cellOffsets, 0)
-		for i := len(pg.cellOffsets) - 1; i > ind; i-- { // use (len(cellOffsets)) instead of (pg.nCells) because we are mutating the latter
-			pg.cellOffsets[i] = pg.cellOffsets[i-1]
-		}
-		pg.cellOffsets[ind] = cellOffset
+	c := cell{
+		key:         key,
+		payloadSize: uint16(len(payload)),
+		payload:     payload,
 	}
 
-	pg.cells = buf.Bytes()
-	pg.nFreeBytes -= sizeofPageCellOffset + uint16(cellSize)
+	var cellOffset uint16
+	cellSize := sizeofCellKey + sizeofCellPayloadSize + c.payloadSize
+	if pg.freeBlkList != nil {
+		cellOffset = pg.freeBlkList.offset
+		pg.freeBlkList = pg.freeBlkList.nextBlk
+	} else {
+		cellOffset = dbPageHdrSize + pg.nCells*sizeofCellOff + pg.nFreeBytes - cellSize
+	}
+
+	pg.cells[cellOffset] = c
+
+	if ind == int(pg.nCells) { // append new cell offset at the end of the cell offsets array
+		pg.cellOffArr = append(pg.cellOffArr, cellOffset)
+	} else { // push cell offsets starting from [ind] forward one place & put new cell at [ind]
+		pg.cellOffArr = append(pg.cellOffArr, 0)
+		for i := len(pg.cellOffArr) - 1; i > ind; i-- { // use (len(cellOffsets)) instead of (pg.nCells) because we are mutating the latter
+			pg.cellOffArr[i] = pg.cellOffArr[i-1]
+		}
+		pg.cellOffArr[ind] = cellOffset
+	}
+
+	pg.nFreeBytes -= sizeofCellOff + cellSize
 	pg.nCells++
 
 	return nil
 }
 
 func insert(key uint32, payload []byte, root *page, firstFreePtr *uint32) error {
-	cellSize := sizeofPageCellKey + sizeofPageCellPayloadSize + len(payload)
+	cellSize := sizeofCellKey + sizeofCellPayloadSize + len(payload)
 	if cellSize > int(dbMaxLeafCellSize) {
 		return errors.New("max leaf cell size exceeded: payload cannot fit in one page")
 	}

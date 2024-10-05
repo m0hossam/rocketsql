@@ -24,6 +24,7 @@ func displayPageOne(p *pageOne) {
 }
 
 func displayPage(p *page) {
+	fmt.Println("#############################")
 	fmt.Printf("ID: %d\n", p.id)
 	if p.pType == leafPage {
 		fmt.Printf("Type: Leaf\n")
@@ -34,9 +35,16 @@ func displayPage(p *page) {
 	fmt.Printf("Rightmost Ptr: %d\n", p.lastPtr)
 	fmt.Printf("No. of Cells: %d\n", p.nCells)
 	for i := 0; i < int(p.nCells); i++ {
-		fmt.Printf("\tCell[%d] Offset: %d\n", i, p.cellOffsets[i])
+		fmt.Printf("\tCell[%d]:\n", i)
+		fmt.Printf("\t\tOffset: %d\n", p.cellOffArr[i])
+		fmt.Printf("\t\tKey: %d\n", p.cells[p.cellOffArr[i]].key)
+		if p.pType == leafPage {
+			fmt.Printf("\t\tPayload Size: %d\n", p.cells[p.cellOffArr[i]].payloadSize)
+			fmt.Printf("\t\tPayload: %v\n", p.cells[p.cellOffArr[i]].payload)
+		} else {
+			fmt.Printf("\t\tPointer: %d\n", p.cells[p.cellOffArr[i]].ptr)
+		}
 	}
-	fmt.Println(p.cells)
 }
 
 func TestCreateDB(t *testing.T) {
@@ -92,12 +100,15 @@ func TestSavePage(t *testing.T) {
 	displayPage(p)
 
 	p.lastPtr = 99
-	p.nCells = 1
-	p.cellOffsets = append(p.cellOffsets, dbPageSize-1)
-	p.cells = append(p.cells, 1)
-	p.cells = append(p.cells, 2)
-	p.cells = append(p.cells, 3)
-	p.nFreeBytes -= p.nCells*sizeofPageCellOffset + 3
+	p.nCells++
+	p.cellOffArr = append(p.cellOffArr, 4000)
+	c := cell{
+		key:         74,
+		payloadSize: 2,
+		payload:     []byte{66, 99},
+	}
+	p.cells[4000] = c
+	p.nFreeBytes -= 8 + 2
 	fmt.Println("Loaded page in-memory after updating: ###########")
 	displayPage(p)
 
@@ -112,4 +123,22 @@ func TestSavePage(t *testing.T) {
 	}
 	fmt.Println("Loaded page from disk after updating: ###########")
 	displayPage(p)
+}
+
+func TestBtreeExample(t *testing.T) {
+	err := openDB("db.rocketsql")
+	if err != nil {
+		msg := createAndSeedDB()
+		if msg != "ok" {
+			t.Fatal(msg)
+		}
+	}
+
+	for i := 2; i <= 9; i++ {
+		p, err := loadPage(uint32(i))
+		if err != nil {
+			t.Fatalf("Failed to load page: %s", err)
+		}
+		displayPage(p)
+	}
 }

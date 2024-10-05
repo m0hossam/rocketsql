@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 )
 
@@ -27,7 +28,7 @@ func createFile(path string) error {
 
 func saveNewPageToDisk(path string, data []byte) error {
 	if len(data) != int(dbPageSize) {
-		return errors.New("length of byte sequence must be equal to a page size")
+		return fmt.Errorf("length of byte sequence (%d) must be equal to a page size (%d)", len(data), dbPageSize)
 	}
 
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND, os.ModeExclusive)
