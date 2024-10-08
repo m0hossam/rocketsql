@@ -128,10 +128,15 @@ func TestSavePage(t *testing.T) {
 func TestBtreeExample(t *testing.T) {
 	err := openDB("db.rocketsql")
 	if err != nil {
-		msg := createAndSeedDB()
-		if msg != "ok" {
-			t.Fatal(msg)
+		err = createAndSeedDB()
+		if err != nil {
+			t.Fatal(err)
 		}
+	}
+
+	err = fillUpPage9()
+	if err != nil {
+		t.Fatalf("Failed to fill up page 9: %s", err)
 	}
 
 	for i := 2; i <= 9; i++ {

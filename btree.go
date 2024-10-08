@@ -73,16 +73,16 @@ func find(key uint32, root *page) ([]byte, uint32) { // returns raw tuple data a
 	return nil, dbNullPage
 }
 
-func insertIntoLeaf(pg *page, key uint32, payload []byte) error {
+func upperBoundIndex(pg *page, key uint32) (int, error) { // returns index of 1st cell with a key > new key, or the no. of cells if none found
 	l := 0
 	r := int(pg.nCells) - 1
-	ind := int(pg.nCells) // index of 1st cell with a key > new key, is equal to the no. of cells if none found
+	ind := int(pg.nCells)
 	for l <= r {
 		m := (l + r) / 2
 		c := pg.cells[pg.cellOffArr[m]]
 		k := c.key
 		if k == key {
-			return errors.New("the key is not unique")
+			return 0, errors.New("the key is not unique")
 		}
 		if k < key {
 			l = m + 1
@@ -92,7 +92,10 @@ func insertIntoLeaf(pg *page, key uint32, payload []byte) error {
 			r = m - 1
 		}
 	}
+	return ind, nil
+}
 
+func insertIntoLeaf(pg *page, key uint32, payload []byte) error {
 	c := cell{
 		key:         key,
 		payloadSize: uint16(len(payload)),
@@ -107,23 +110,73 @@ func insertIntoLeaf(pg *page, key uint32, payload []byte) error {
 	} else {
 		cellOffset = dbPageHdrSize + pg.nCells*sizeofCellOff + pg.nFreeBytes - cellSize
 	}
-
 	pg.cells[cellOffset] = c
 
-	if ind == int(pg.nCells) { // append new cell offset at the end of the cell offsets array
-		pg.cellOffArr = append(pg.cellOffArr, cellOffset)
-	} else { // push cell offsets starting from [ind] forward one place & put new cell at [ind]
-		pg.cellOffArr = append(pg.cellOffArr, 0)
-		for i := len(pg.cellOffArr) - 1; i > ind; i-- { // use (len(cellOffsets)) instead of (pg.nCells) because we are mutating the latter
-			pg.cellOffArr[i] = pg.cellOffArr[i-1]
-		}
-		pg.cellOffArr[ind] = cellOffset
+	ind, err := upperBoundIndex(pg, key)
+	if err != nil {
+		return err
 	}
+
+	pg.cellOffArr = append(pg.cellOffArr, 0)
+	for i := len(pg.cellOffArr) - 1; i > ind; i-- { // use (len(cellOffsets)) instead of (pg.nCells) because we are mutating the latter
+		pg.cellOffArr[i] = pg.cellOffArr[i-1]
+	}
+	pg.cellOffArr[ind] = cellOffset
 
 	pg.nFreeBytes -= sizeofCellOff + cellSize
 	pg.nCells++
 
 	return nil
+}
+
+func insertIntoNonLeaf(path []uint32, key uint32, newLeaf uint32) error { // TODO: will need firstFreePtr
+	// TODO: if len(path) == 1 then we are inserting into the root
+	pg, err := loadPage(path[len(path)-1])
+	if err != nil {
+		return err
+	}
+	ind, err := upperBoundIndex(pg, key)
+	if err != nil {
+		return err // duplicate key
+	}
+
+	newCell := cell{
+		key: key,
+	}
+	cellSize := sizeofCellKey + sizeofCellPtr
+
+	if cellSize+sizeofCellOff > int(pg.nFreeBytes) { // TODO: Split case
+		return errors.New("split case")
+	}
+
+	var off uint16
+	if pg.freeBlkList != nil { // TODO: Fragmentation
+		off = pg.freeBlkList.offset
+		pg.freeBlkList = pg.freeBlkList.nextBlk
+	} else {
+		off = dbPageSize - uint16(cellSize)*(pg.nCells+1)
+	}
+
+	pg.cellOffArr = append(pg.cellOffArr, 0)
+	if ind == int(pg.nCells) {
+		newCell.ptr = pg.lastPtr
+		pg.lastPtr = newLeaf
+	} else { // shifting
+		newCell.ptr = pg.cells[pg.cellOffArr[ind]].ptr
+		c := pg.cells[pg.cellOffArr[ind]]
+		c.ptr = newLeaf
+		pg.cells[pg.cellOffArr[ind]] = c
+		for i := len(pg.cellOffArr) - 1; i > ind; i-- {
+			pg.cellOffArr[i] = pg.cellOffArr[i-1]
+		}
+	}
+
+	pg.cellOffArr[ind] = off
+	pg.cells[off] = newCell
+	pg.nCells++
+	pg.nFreeBytes -= uint16(cellSize) + sizeofCellOff
+
+	return savePage(pg)
 }
 
 func insert(key uint32, payload []byte, root *page, firstFreePtr *uint32) error {
@@ -140,17 +193,66 @@ func insert(key uint32, payload []byte, root *page, firstFreePtr *uint32) error 
 	}
 
 	if uint16(cellSize) <= pg.nFreeBytes {
-		err := insertIntoLeaf(pg, key, payload)
+		err := insertIntoLeaf(pg, key, payload) // TODO: need to take fragmentation into account
 		if err == nil {
 			err = savePage(pg)
 		}
 		return err
 	}
 
-	// TODO: Split case
-	//maxNumCells := pg.nCells
-	//minNumCells := (maxNumCells + 1) / 2
-	// put minNumCells in current pg and remaining in newPg
+	// Split case:
+	ind, err := upperBoundIndex(pg, key)
+	if err != nil {
+		return err
+	}
 
-	return errors.New("need to split node")
+	cells := []cell{}
+	for i := 0; i < ind; i++ {
+		c := pg.cells[pg.cellOffArr[i]]
+		cells = append(cells, c)
+	}
+	newCell := cell{
+		key:         key,
+		payloadSize: uint16(len(payload)),
+		payload:     payload,
+	}
+	cells = append(cells, newCell)
+	for i := ind; i < len(pg.cellOffArr); i++ {
+		c := pg.cells[pg.cellOffArr[i]]
+		cells = append(cells, c)
+	}
+
+	truncatePage(pg)
+	for i := 0; i < (len(cells)+1)/2; i++ {
+		off := dbPageSize - uint16(cellSize*(i+1)) // cells in same page belong to same table (i.e. fixed-length cells)
+		pg.cellOffArr = append(pg.cellOffArr, off)
+		pg.cells[off] = cells[i]
+		pg.nCells++
+		pg.nFreeBytes -= uint16(cellSize + sizeofCellOff)
+	}
+
+	newPg, err := createPage(leafPage, firstFreePtr)
+	if err != nil {
+		return err
+	}
+	for i := (len(cells) + 1) / 2; i < len(cells); i++ {
+		off := dbPageSize - uint16(cellSize*(i-(len(cells)+1)/2+1))
+		newPg.cellOffArr = append(newPg.cellOffArr, off)
+		newPg.cells[off] = cells[i]
+		newPg.nCells++
+		newPg.nFreeBytes -= uint16(cellSize + sizeofCellOff)
+	}
+
+	newPg.lastPtr = pg.lastPtr
+	pg.lastPtr = newPg.id
+
+	path = path[:len(path)-1] // remove last ptr in path
+	err = insertIntoNonLeaf(path, newPg.cells[newPg.cellOffArr[0]].key, newPg.id)
+	if err == nil {
+		err = savePage(pg)
+		if err == nil {
+			err = saveNewPage(newPg)
+		}
+	}
+	return err // TODO: Since we save multiple pages sequentially, changes must be undone if somes pages saved and some failed
 }

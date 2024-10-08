@@ -1,16 +1,26 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"testing"
 )
 
+func displayBtree(root *page) {
+	for i := 0; i <= 500; i++ {
+		data, pg := find(uint32(i), root)
+		if pg != dbNullPage {
+			fmt.Printf("Page: %d -> Key: %d -> Data: %d\n", pg, i, binary.BigEndian.Uint16(data))
+		}
+	}
+}
+
 func TestFindPage(t *testing.T) {
 	err := openDB("db.rocketsql")
 	if err != nil {
-		msg := createAndSeedDB()
-		if msg != "ok" {
-			t.Fatal(msg)
+		err = createAndSeedDB()
+		if err != nil {
+			t.Fatal(err)
 		}
 	}
 
@@ -40,9 +50,9 @@ func TestFindPage(t *testing.T) {
 func TestFind(t *testing.T) {
 	err := openDB("db.rocketsql")
 	if err != nil {
-		msg := createAndSeedDB()
-		if msg != "ok" {
-			t.Fatal(msg)
+		err = createAndSeedDB()
+		if err != nil {
+			t.Fatal(err)
 		}
 	}
 
@@ -50,20 +60,16 @@ func TestFind(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to load page: %s", err)
 	}
-	for i := 0; i <= 30; i++ {
-		data, pg := find(uint32(i), root)
-		if pg != dbNullPage {
-			fmt.Printf("Page: %d -> Key: %d -> Data: %v\n", pg, i, data)
-		}
-	}
+
+	displayBtree(root)
 }
 
 func TestInsert(t *testing.T) {
 	err := openDB("db.rocketsql")
 	if err != nil {
-		msg := createAndSeedDB()
-		if msg != "ok" {
-			t.Fatal(msg)
+		err = createAndSeedDB()
+		if err != nil {
+			t.Fatal(err)
 		}
 	}
 
@@ -78,8 +84,10 @@ func TestInsert(t *testing.T) {
 	}
 
 	// INSERTION PART ##################
-	key := uint32(7)
-	payload := []byte{7}
+	val := 431 // CHANGE THIS
+	key := uint32(val)
+	payload := make([]byte, 2)
+	binary.Encode(payload, binary.BigEndian, uint16(val))
 	err = insert(key, payload, root, &p1.firstFreePtr)
 	if err != nil {
 		t.Fatalf("Failed to insert cell: %s", err)
@@ -91,10 +99,48 @@ func TestInsert(t *testing.T) {
 		t.Fatalf("Failed to save page one to disk: %s", err)
 	}
 
-	for i := 0; i <= 30; i++ {
-		data, pg := find(uint32(i), root)
-		if pg != dbNullPage {
-			fmt.Printf("Page: %d -> Key: %d -> Data: %v\n", pg, i, data)
+	displayBtree(root)
+}
+
+func TestInsertSplitLeaf(t *testing.T) {
+	err := openDB("db.rocketsql")
+	if err != nil {
+		err = createAndSeedDB()
+		if err != nil {
+			t.Fatal(err)
 		}
 	}
+
+	err = fillUpPage9()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p1, err := loadPageOne()
+	if err != nil {
+		t.Fatalf("Failed to load page one: %s", err)
+	}
+
+	root, err := loadPage(2)
+	if err != nil {
+		t.Fatalf("Failed to load page: %s", err)
+	}
+
+	// INSERTION PART ##################
+	val := 431 // CHANGE THIS
+	key := uint32(val)
+	payload := make([]byte, 2)
+	binary.Encode(payload, binary.BigEndian, uint16(val))
+	err = insert(key, payload, root, &p1.firstFreePtr)
+	if err != nil {
+		t.Fatalf("Failed to insert cell: %s", err)
+	}
+	// ###################################
+
+	err = savePageOne(p1)
+	if err != nil {
+		t.Fatalf("Failed to save page one to disk: %s", err)
+	}
+
+	displayBtree(root)
 }

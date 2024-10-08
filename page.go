@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	dbPageSize        uint16 = 4096
+	dbPageSize        uint16 = 64
 	dbHdrSize         uint16 = 6
 	dbPageHdrSize     uint16 = 11
 	dbNullPage        uint32 = 0
@@ -107,4 +107,12 @@ func createPage(pType uint8, firstFreePtr *uint32) (*page, error) {
 	}
 	atomic.AddUint32(firstFreePtr, 1)
 	return p, nil
+}
+
+func truncatePage(p *page) {
+	p.cellOffArr = []uint16{}
+	p.cells = map[uint16]cell{}
+	p.nCells = 0
+	p.nFreeBytes = dbPageSize - dbHdrSize
+	p.freeBlkList = nil
 }
