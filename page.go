@@ -113,6 +113,6 @@ func truncatePage(p *page) {
 	p.cellOffArr = []uint16{}
 	p.cells = map[uint16]cell{}
 	p.nCells = 0
-	p.nFreeBytes = dbPageSize - dbHdrSize
+	p.nFreeBytes = dbPageSize - dbPageHdrSize
 	p.freeBlkList = nil
 }

@@ -126,18 +126,18 @@ func insertIntoLeaf(pg *page, key uint32, payload []byte) error {
 	pg.nFreeBytes -= sizeofCellOff + cellSize
 	pg.nCells++
 
-	return nil
+	return savePage(pg)
 }
 
-func insertIntoNonLeaf(path []uint32, key uint32, newLeaf uint32) error { // TODO: will need firstFreePtr
-	// TODO: if len(path) == 1 then we are inserting into the root
+func insertIntoNonLeaf(firstFreePtr *uint32, path []uint32, key uint32, newLeaf uint32) (uint32, error) { // TODO: will need firstFreePtr
+
 	pg, err := loadPage(path[len(path)-1])
 	if err != nil {
-		return err
+		return dbNullPage, err
 	}
 	ind, err := upperBoundIndex(pg, key)
 	if err != nil {
-		return err // duplicate key
+		return dbNullPage, err // duplicate key
 	}
 
 	newCell := cell{
@@ -146,7 +146,84 @@ func insertIntoNonLeaf(path []uint32, key uint32, newLeaf uint32) error { // TOD
 	cellSize := sizeofCellKey + sizeofCellPtr
 
 	if cellSize+sizeofCellOff > int(pg.nFreeBytes) { // TODO: Split case
-		return errors.New("split case")
+
+		pg.cellOffArr = append(pg.cellOffArr, 0)
+		if ind == int(pg.nCells) {
+			newCell.ptr = pg.lastPtr
+			pg.lastPtr = newLeaf
+		} else { // shifting
+			newCell.ptr = pg.cells[pg.cellOffArr[ind]].ptr
+			c := pg.cells[pg.cellOffArr[ind]]
+			c.ptr = newLeaf
+			pg.cells[pg.cellOffArr[ind]] = c
+			for i := len(pg.cellOffArr) - 1; i > ind; i-- {
+				pg.cellOffArr[i] = pg.cellOffArr[i-1]
+			}
+		}
+		pg.cellOffArr[ind] = 0
+		pg.cells[0] = newCell
+
+		cells := []cell{}
+		for i := 0; i < len(pg.cellOffArr); i++ {
+			c := pg.cells[pg.cellOffArr[i]]
+			cells = append(cells, c)
+		}
+		truncatePage(pg)
+
+		newPg, err := createPage(interiorPage, firstFreePtr)
+		if err != nil {
+			return dbNullPage, err
+		}
+
+		idx := len(cells) / 2
+		newPg.lastPtr = pg.lastPtr
+		pg.lastPtr = cells[idx].ptr
+		for i := 0; i < idx; i++ {
+			off := dbPageSize - uint16(cellSize*(i+1))
+			pg.cellOffArr = append(pg.cellOffArr, off)
+			pg.cells[off] = cells[i]
+			pg.nCells++
+			pg.nFreeBytes -= uint16(cellSize + sizeofCellOff)
+		}
+		for i := idx + 1; i < len(cells); i++ {
+			off := dbPageSize - uint16(cellSize*(i-idx))
+			newPg.cellOffArr = append(newPg.cellOffArr, off)
+			newPg.cells[off] = cells[i]
+			newPg.nCells++
+			newPg.nFreeBytes -= uint16(cellSize + sizeofCellOff)
+		}
+
+		err = savePage(pg)
+		if err != nil {
+			return dbNullPage, err
+		}
+
+		err = saveNewPage(newPg)
+		if err != nil {
+			return dbNullPage, err
+		}
+
+		if len(path) == 1 {
+			newRoot, err := createPage(interiorPage, firstFreePtr)
+			if err != nil {
+				return dbNullPage, err
+			}
+			newRoot.lastPtr = newPg.id
+			off := dbPageSize - uint16(cellSize)
+			cells[idx].ptr = pg.id
+			newRoot.cellOffArr = append(newRoot.cellOffArr, off)
+			newRoot.cells[off] = cells[idx]
+			newRoot.nCells++
+			newRoot.nFreeBytes -= uint16(cellSize + sizeofCellOff)
+			err = saveNewPage(newRoot)
+			if err != nil {
+				return dbNullPage, err
+			}
+			return newRoot.id, nil
+		}
+
+		path = path[:len(path)-1] // remove last ptr in path
+		return insertIntoNonLeaf(firstFreePtr, path, cells[idx].key, newPg.id)
 	}
 
 	var off uint16
@@ -176,34 +253,30 @@ func insertIntoNonLeaf(path []uint32, key uint32, newLeaf uint32) error { // TOD
 	pg.nCells++
 	pg.nFreeBytes -= uint16(cellSize) + sizeofCellOff
 
-	return savePage(pg)
+	return dbNullPage, savePage(pg)
 }
 
-func insert(key uint32, payload []byte, root *page, firstFreePtr *uint32) error {
+func insert(key uint32, payload []byte, root *page, firstFreePtr *uint32) (uint32, error) {
 	cellSize := sizeofCellKey + sizeofCellPayloadSize + len(payload)
 	if cellSize > int(dbMaxLeafCellSize) {
-		return errors.New("max leaf cell size exceeded: payload cannot fit in one page")
+		return dbNullPage, errors.New("max leaf cell size exceeded: payload cannot fit in one page")
 	}
 
 	path := findPage(key, root)
 	ptr := path[len(path)-1]
 	pg, err := loadPage(ptr)
 	if err != nil {
-		return err
+		return dbNullPage, err
 	}
 
 	if uint16(cellSize) <= pg.nFreeBytes {
-		err := insertIntoLeaf(pg, key, payload) // TODO: need to take fragmentation into account
-		if err == nil {
-			err = savePage(pg)
-		}
-		return err
+		return dbNullPage, insertIntoLeaf(pg, key, payload) // TODO: need to take fragmentation into account
 	}
 
 	// Split case:
 	ind, err := upperBoundIndex(pg, key)
 	if err != nil {
-		return err
+		return dbNullPage, err
 	}
 
 	cells := []cell{}
@@ -233,7 +306,7 @@ func insert(key uint32, payload []byte, root *page, firstFreePtr *uint32) error 
 
 	newPg, err := createPage(leafPage, firstFreePtr)
 	if err != nil {
-		return err
+		return dbNullPage, err
 	}
 	for i := (len(cells) + 1) / 2; i < len(cells); i++ {
 		off := dbPageSize - uint16(cellSize*(i-(len(cells)+1)/2+1))
@@ -246,13 +319,20 @@ func insert(key uint32, payload []byte, root *page, firstFreePtr *uint32) error 
 	newPg.lastPtr = pg.lastPtr
 	pg.lastPtr = newPg.id
 
-	path = path[:len(path)-1] // remove last ptr in path
-	err = insertIntoNonLeaf(path, newPg.cells[newPg.cellOffArr[0]].key, newPg.id)
-	if err == nil {
-		err = savePage(pg)
-		if err == nil {
-			err = saveNewPage(newPg)
-		}
+	err = savePage(pg)
+	if err != nil {
+		return dbNullPage, err
 	}
-	return err // TODO: Since we save multiple pages sequentially, changes must be undone if somes pages saved and some failed
+
+	err = saveNewPage(newPg)
+	if err != nil {
+		return dbNullPage, err
+	}
+
+	path = path[:len(path)-1] // remove last ptr in path
+	newRootId, err := insertIntoNonLeaf(firstFreePtr, path, newPg.cells[newPg.cellOffArr[0]].key, newPg.id)
+	if err != nil {
+		return dbNullPage, err
+	}
+	return newRootId, err // TODO: Since we save multiple pages sequentially, changes must be undone if somes pages saved and some failed
 }

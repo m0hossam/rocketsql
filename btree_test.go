@@ -88,7 +88,7 @@ func TestInsert(t *testing.T) {
 	key := uint32(val)
 	payload := make([]byte, 2)
 	binary.Encode(payload, binary.BigEndian, uint16(val))
-	err = insert(key, payload, root, &p1.firstFreePtr)
+	_, err = insert(key, payload, root, &p1.firstFreePtr)
 	if err != nil {
 		t.Fatalf("Failed to insert cell: %s", err)
 	}
@@ -131,7 +131,7 @@ func TestInsertSplitLeaf(t *testing.T) {
 	key := uint32(val)
 	payload := make([]byte, 2)
 	binary.Encode(payload, binary.BigEndian, uint16(val))
-	err = insert(key, payload, root, &p1.firstFreePtr)
+	_, err = insert(key, payload, root, &p1.firstFreePtr)
 	if err != nil {
 		t.Fatalf("Failed to insert cell: %s", err)
 	}

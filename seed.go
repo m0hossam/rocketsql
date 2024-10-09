@@ -28,7 +28,7 @@ func fillUpPage9() error {
 		key := uint32(val)
 		payload := make([]byte, 2)
 		binary.Encode(payload, binary.BigEndian, uint16(val))
-		err = insert(key, payload, pg2, &pg1.firstFreePtr)
+		_, err = insert(key, payload, pg2, &pg1.firstFreePtr)
 		if err != nil {
 			return err
 		}

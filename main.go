@@ -7,8 +7,8 @@ import (
 
 func main() { // MAIN WILL BE USED FOR DEBUGGING BECAUSE I CANT DEBUG TESTS FOR SOME REASON
 	fmt.Println("Hello, world")
-	for i := 45; i <= 55; i += 5 {
-		err := testInsert(i)
+	for i := 0; i < 15; i++ {
+		err := testInsert(30 + i*5)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -104,9 +104,12 @@ func testInsert(val int) error {
 	key := uint32(val)
 	payload := make([]byte, 2)
 	binary.Encode(payload, binary.BigEndian, uint16(val))
-	err = insert(key, payload, root, &p1.firstFreePtr)
+	newRootId, err := insert(key, payload, root, &p1.firstFreePtr)
 	if err != nil {
 		return fmt.Errorf("failed to insert cell: %s", err)
+	}
+	if newRootId != dbNullPage {
+		fmt.Println("NEW ROOT CREATED WITH AN ID OF ", newRootId)
 	}
 	// ###################################
 
