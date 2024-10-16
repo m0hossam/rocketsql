@@ -12,7 +12,7 @@ var (
 
 func main() { // MAIN WILL BE USED FOR DEBUGGING BECAUSE I CANT DEBUG TESTS FOR SOME REASON
 	fmt.Println("Hello, world")
-	testWithNames()
+	testWithNumbers()
 }
 
 func testWithNames() {
@@ -150,10 +150,10 @@ func dispPage(pg *page) {
 		c := pg.cells[pg.cellOffArr[i]]
 		fmt.Printf("\tCell[%d]:\n", i)
 		fmt.Printf("\t\tOffset: %d\n", pg.cellOffArr[i])
-		fmt.Printf("\t\tKey: %v\n", namesMp[c.key]) // TODO: ADJUST THIS BASED ON KEY DATATYPE
+		fmt.Printf("\t\tKey: %v\n", c.key) // TODO: ADJUST THIS BASED ON KEY DATATYPE
 		if pg.pType == leafPage {
 			fmt.Printf("\t\tPayload Size: %d\n", c.payloadSize)
-			fmt.Printf("\t\tPayload: %v\n", string(c.payload)) // TODO: ADJUST THIS BASED ON PAYLOAD DATATYPE
+			fmt.Printf("\t\tPayload: %v\n", binary.BigEndian.Uint16(c.payload)) // TODO: ADJUST THIS BASED ON PAYLOAD DATATYPE
 		} else {
 			fmt.Printf("\t\tPointer: %d\n", c.ptr)
 		}

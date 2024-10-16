@@ -292,7 +292,7 @@ func insert(key uint32, payload []byte, root *page, firstFreePtr *uint32) (uint3
 		return dbNullPage, err
 	}
 
-	if uint16(cellSize) <= pg.nFreeBytes {
+	if cellSize+sizeofCellOff <= int(pg.nFreeBytes) {
 		return dbNullPage, insertIntoLeaf(pg, key, payload) // TODO: need to take fragmentation into account
 	}
 
