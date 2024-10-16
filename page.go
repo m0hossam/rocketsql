@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	dbPageSize        uint16 = 64
+	dbPageSize        uint16 = 50
 	dbHdrSize         uint16 = 6
 	dbPageHdrSize     uint16 = 11
 	dbNullPage        uint32 = 0

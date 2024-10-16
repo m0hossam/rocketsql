@@ -129,7 +129,30 @@ func insertIntoLeaf(pg *page, key uint32, payload []byte) error {
 	return savePage(pg)
 }
 
-func insertIntoNonLeaf(firstFreePtr *uint32, path []uint32, key uint32, newLeaf uint32) (uint32, error) { // TODO: will need firstFreePtr
+func insertIntoNonLeaf(firstFreePtr *uint32, path []uint32, key uint32, oldLeaf uint32, newLeaf uint32) (uint32, error) { // TODO: will need firstFreePtr
+
+	if len(path) == 0 {
+		newCell := cell{
+			key: key,
+			ptr: oldLeaf,
+		}
+		cellSize := sizeofCellKey + sizeofCellPtr
+		newRoot, err := createPage(interiorPage, firstFreePtr)
+		if err != nil {
+			return dbNullPage, err
+		}
+		newRoot.lastPtr = newLeaf
+		off := dbPageSize - uint16(cellSize)
+		newRoot.cellOffArr = append(newRoot.cellOffArr, off)
+		newRoot.cells[off] = newCell
+		newRoot.nCells++
+		newRoot.nFreeBytes -= uint16(cellSize + sizeofCellOff)
+		err = saveNewPage(newRoot)
+		if err != nil {
+			return dbNullPage, err
+		}
+		return newRoot.id, nil
+	}
 
 	pg, err := loadPage(path[len(path)-1])
 	if err != nil {
@@ -223,7 +246,7 @@ func insertIntoNonLeaf(firstFreePtr *uint32, path []uint32, key uint32, newLeaf 
 		}
 
 		path = path[:len(path)-1] // remove last ptr in path
-		return insertIntoNonLeaf(firstFreePtr, path, cells[idx].key, newPg.id)
+		return insertIntoNonLeaf(firstFreePtr, path, cells[idx].key, pg.id, newPg.id)
 	}
 
 	var off uint16
@@ -330,7 +353,7 @@ func insert(key uint32, payload []byte, root *page, firstFreePtr *uint32) (uint3
 	}
 
 	path = path[:len(path)-1] // remove last ptr in path
-	newRootId, err := insertIntoNonLeaf(firstFreePtr, path, newPg.cells[newPg.cellOffArr[0]].key, newPg.id)
+	newRootId, err := insertIntoNonLeaf(firstFreePtr, path, newPg.cells[newPg.cellOffArr[0]].key, pg.id, newPg.id)
 	if err != nil {
 		return dbNullPage, err
 	}

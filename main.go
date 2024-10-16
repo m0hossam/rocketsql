@@ -3,10 +3,90 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
+	"sort"
+)
+
+var (
+	namesMp = map[uint32]string{}
 )
 
 func main() { // MAIN WILL BE USED FOR DEBUGGING BECAUSE I CANT DEBUG TESTS FOR SOME REASON
 	fmt.Println("Hello, world")
+	testWithNames()
+}
+
+func testWithNames() {
+	nameMaxLength := 5
+	names := []string{"Srinivasan", "Wu", "Mozart", "Einstein", "El Said", "Gold",
+		"Katz", "Califieri", "Singh", "Crick", "Brandt", "Kim"}
+	for idx, name := range names {
+		end := min(len(name), nameMaxLength)
+		buf := []byte(name[:end])
+		names[idx] = string(buf) // shorten names to a max length of 5
+	}
+	sort.Strings(names)
+
+	err := createDB("db.rocketsql")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	p1, err := loadPageOne()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	p2, err := createPage(leafPage, &p1.firstFreePtr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	err = saveNewPage(p2)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	rootId := uint32(2)
+	for idx, name := range names {
+		fmt.Println("names[", idx, "] = ", name)
+		namesMp[uint32(idx)] = name
+
+		root, err := loadPage(rootId)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		buf := make([]byte, nameMaxLength)
+		copy(buf, name)
+
+		newRootId, err := insert(uint32(idx), buf, root, &p1.firstFreePtr)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		if newRootId != dbNullPage {
+			rootId = newRootId
+		}
+	}
+
+	root, err := loadPage(rootId)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	err = dispBtree(root)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+}
+
+func testWithNumbers() {
 	for i := 0; i < 15; i++ {
 		err := testInsert(30 + i*5)
 		if err != nil {
@@ -70,10 +150,10 @@ func dispPage(pg *page) {
 		c := pg.cells[pg.cellOffArr[i]]
 		fmt.Printf("\tCell[%d]:\n", i)
 		fmt.Printf("\t\tOffset: %d\n", pg.cellOffArr[i])
-		fmt.Printf("\t\tKey: %d\n", c.key)
+		fmt.Printf("\t\tKey: %v\n", namesMp[c.key]) // TODO: ADJUST THIS BASED ON KEY DATATYPE
 		if pg.pType == leafPage {
 			fmt.Printf("\t\tPayload Size: %d\n", c.payloadSize)
-			fmt.Printf("\t\tPayload: %v\n", binary.BigEndian.Uint16(c.payload))
+			fmt.Printf("\t\tPayload: %v\n", string(c.payload)) // TODO: ADJUST THIS BASED ON PAYLOAD DATATYPE
 		} else {
 			fmt.Printf("\t\tPointer: %d\n", c.ptr)
 		}
