@@ -7,24 +7,35 @@ import (
 )
 
 var (
-	namesMp = map[uint32]string{}
+	keyNameMap = map[int]string{}
+	nameKeyMap = map[string]int{}
 )
 
 func main() { // MAIN WILL BE USED FOR DEBUGGING BECAUSE I CANT DEBUG TESTS FOR SOME REASON
 	fmt.Println("Hello, world")
-	testWithNumbers()
+	testWithNames()
 }
 
+/*
+Test this with dbPageSize = 50
+REFERENCE: Database System Concepts 7th Edition P. 636 Figure 14.9
+*/
 func testWithNames() {
 	nameMaxLength := 5
-	names := []string{"Srinivasan", "Wu", "Mozart", "Einstein", "El Said", "Gold",
-		"Katz", "Califieri", "Singh", "Crick", "Brandt", "Kim"}
-	for idx, name := range names {
+	names := []string{"Brand", "Calif", "Einst", "El Sa", "Gold", "Katz", "Mozar", "Singh", "Srini", "Wu", "Crick", "Kim"}
+	for idx, name := range names { // precaution for future updates to array
 		end := min(len(name), nameMaxLength)
 		buf := []byte(name[:end])
 		names[idx] = string(buf) // shorten names to a max length of 5
 	}
-	sort.Strings(names)
+
+	sortedNames := make([]string, len(names))
+	copy(sortedNames, names)
+	sort.Strings(sortedNames)
+	for idx, name := range sortedNames {
+		keyNameMap[idx] = name
+		nameKeyMap[name] = idx
+	}
 
 	err := createDB("db.rocketsql")
 	if err != nil {
@@ -51,10 +62,7 @@ func testWithNames() {
 	}
 
 	rootId := uint32(2)
-	for idx, name := range names {
-		fmt.Println("names[", idx, "] = ", name)
-		namesMp[uint32(idx)] = name
-
+	for _, name := range names {
 		root, err := loadPage(rootId)
 		if err != nil {
 			fmt.Println(err)
@@ -64,7 +72,7 @@ func testWithNames() {
 		buf := make([]byte, nameMaxLength)
 		copy(buf, name)
 
-		newRootId, err := insert(uint32(idx), buf, root, &p1.firstFreePtr)
+		newRootId, err := insert(uint32(nameKeyMap[name]), buf, root, &p1.firstFreePtr)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -150,10 +158,10 @@ func dispPage(pg *page) {
 		c := pg.cells[pg.cellOffArr[i]]
 		fmt.Printf("\tCell[%d]:\n", i)
 		fmt.Printf("\t\tOffset: %d\n", pg.cellOffArr[i])
-		fmt.Printf("\t\tKey: %v\n", c.key) // TODO: ADJUST THIS BASED ON KEY DATATYPE
+		fmt.Printf("\t\tKey: %v\n", keyNameMap[int(c.key)]) // TODO: ADJUST THIS BASED ON KEY DATATYPE
 		if pg.pType == leafPage {
 			fmt.Printf("\t\tPayload Size: %d\n", c.payloadSize)
-			fmt.Printf("\t\tPayload: %v\n", binary.BigEndian.Uint16(c.payload)) // TODO: ADJUST THIS BASED ON PAYLOAD DATATYPE
+			fmt.Printf("\t\tPayload: %v\n", string(c.payload)) // TODO: ADJUST THIS BASED ON PAYLOAD DATATYPE
 		} else {
 			fmt.Printf("\t\tPointer: %d\n", c.ptr)
 		}
