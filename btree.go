@@ -95,6 +95,21 @@ func upperBoundIndex(pg *page, key uint32) (int, error) { // returns index of 1s
 	return ind, nil
 }
 
+func pushBackCell(pg *page, c cell) {
+	cellSize := sizeofCellKey
+	if pg.pType == interiorPage {
+		cellSize += sizeofCellPtr
+	} else {
+		cellSize += sizeofCellPayloadSize + int(c.payloadSize)
+	}
+
+	off := dbPageSize - uint16(cellSize)*(pg.nCells+1)
+	pg.cellOffArr = append(pg.cellOffArr, off)
+	pg.cells[off] = c
+	pg.nCells++
+	pg.nFreeBytes -= uint16(cellSize + sizeofCellOff)
+}
+
 func insertIntoLeaf(pg *page, key uint32, payload []byte) error {
 	c := cell{
 		key:         key,
@@ -131,12 +146,13 @@ func insertIntoLeaf(pg *page, key uint32, payload []byte) error {
 
 func insertIntoNonLeaf(firstFreePtr *uint32, path []uint32, key uint32, oldLeaf uint32, newLeaf uint32) (uint32, error) { // TODO: will need firstFreePtr
 
-	if len(path) == 0 {
-		newCell := cell{
-			key: key,
-			ptr: oldLeaf,
-		}
-		cellSize := sizeofCellKey + sizeofCellPtr
+	newCell := cell{
+		key: key,
+		ptr: oldLeaf,
+	}
+	cellSize := sizeofCellKey + sizeofCellPtr
+
+	if len(path) == 0 { // creating new root
 		newRoot, err := createPage(interiorPage, firstFreePtr)
 		if err != nil {
 			return dbNullPage, err
@@ -163,31 +179,23 @@ func insertIntoNonLeaf(firstFreePtr *uint32, path []uint32, key uint32, oldLeaf 
 		return dbNullPage, err // duplicate key
 	}
 
-	newCell := cell{
-		key: key,
-	}
-	cellSize := sizeofCellKey + sizeofCellPtr
-
 	if cellSize+sizeofCellOff > int(pg.nFreeBytes) { // TODO: Split case
 
-		pg.cellOffArr = append(pg.cellOffArr, 0)
 		if ind == int(pg.nCells) {
-			newCell.ptr = pg.lastPtr
 			pg.lastPtr = newLeaf
-		} else { // shifting
-			newCell.ptr = pg.cells[pg.cellOffArr[ind]].ptr
+		} else {
 			c := pg.cells[pg.cellOffArr[ind]]
 			c.ptr = newLeaf
 			pg.cells[pg.cellOffArr[ind]] = c
-			for i := len(pg.cellOffArr) - 1; i > ind; i-- {
-				pg.cellOffArr[i] = pg.cellOffArr[i-1]
-			}
 		}
-		pg.cellOffArr[ind] = 0
-		pg.cells[0] = newCell
 
 		cells := []cell{}
-		for i := 0; i < len(pg.cellOffArr); i++ {
+		for i := 0; i < ind; i++ {
+			c := pg.cells[pg.cellOffArr[i]]
+			cells = append(cells, c)
+		}
+		cells = append(cells, newCell)
+		for i := ind; i < len(pg.cellOffArr); i++ {
 			c := pg.cells[pg.cellOffArr[i]]
 			cells = append(cells, c)
 		}
@@ -202,18 +210,10 @@ func insertIntoNonLeaf(firstFreePtr *uint32, path []uint32, key uint32, oldLeaf 
 		newPg.lastPtr = pg.lastPtr
 		pg.lastPtr = cells[idx].ptr
 		for i := 0; i < idx; i++ {
-			off := dbPageSize - uint16(cellSize*(i+1))
-			pg.cellOffArr = append(pg.cellOffArr, off)
-			pg.cells[off] = cells[i]
-			pg.nCells++
-			pg.nFreeBytes -= uint16(cellSize + sizeofCellOff)
+			pushBackCell(pg, cells[i])
 		}
 		for i := idx + 1; i < len(cells); i++ {
-			off := dbPageSize - uint16(cellSize*(i-idx))
-			newPg.cellOffArr = append(newPg.cellOffArr, off)
-			newPg.cells[off] = cells[i]
-			newPg.nCells++
-			newPg.nFreeBytes -= uint16(cellSize + sizeofCellOff)
+			pushBackCell(newPg, cells[i])
 		}
 
 		err = savePage(pg)
@@ -226,29 +226,11 @@ func insertIntoNonLeaf(firstFreePtr *uint32, path []uint32, key uint32, oldLeaf 
 			return dbNullPage, err
 		}
 
-		if len(path) == 1 {
-			newRoot, err := createPage(interiorPage, firstFreePtr)
-			if err != nil {
-				return dbNullPage, err
-			}
-			newRoot.lastPtr = newPg.id
-			off := dbPageSize - uint16(cellSize)
-			cells[idx].ptr = pg.id
-			newRoot.cellOffArr = append(newRoot.cellOffArr, off)
-			newRoot.cells[off] = cells[idx]
-			newRoot.nCells++
-			newRoot.nFreeBytes -= uint16(cellSize + sizeofCellOff)
-			err = saveNewPage(newRoot)
-			if err != nil {
-				return dbNullPage, err
-			}
-			return newRoot.id, nil
-		}
-
 		path = path[:len(path)-1] // remove last ptr in path
 		return insertIntoNonLeaf(firstFreePtr, path, cells[idx].key, pg.id, newPg.id)
 	}
 
+	// no split needed:
 	var off uint16
 	if pg.freeBlkList != nil { // TODO: Fragmentation
 		off = pg.freeBlkList.offset
@@ -259,10 +241,8 @@ func insertIntoNonLeaf(firstFreePtr *uint32, path []uint32, key uint32, oldLeaf 
 
 	pg.cellOffArr = append(pg.cellOffArr, 0)
 	if ind == int(pg.nCells) {
-		newCell.ptr = pg.lastPtr
 		pg.lastPtr = newLeaf
 	} else { // shifting
-		newCell.ptr = pg.cells[pg.cellOffArr[ind]].ptr
 		c := pg.cells[pg.cellOffArr[ind]]
 		c.ptr = newLeaf
 		pg.cells[pg.cellOffArr[ind]] = c
