@@ -55,7 +55,7 @@ func savePageToDisk(path string, data []byte, ptr uint32) error {
 	}
 	defer f.Close() // file is now open, always close it after function returns
 
-	off := int64((ptr - 1) * uint32(dbPageSize)) // offset to write at (pages are numbered from 1)
+	off := int64(ptr) * int64(dbPageSize) // offset to write at (pages are numbered from 0)
 	_, err = f.WriteAt(data, off)
 	if err != nil {
 		return err
