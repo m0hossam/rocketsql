@@ -19,20 +19,20 @@ const (
 )
 
 const (
-	offsetofPageType      = 0
-	offsetofFreeListOff   = 1
-	offsetofNumCells      = 3
-	offsetofCellArrOff    = 5
-	offsetofNumFragBytes  = 7
-	offsetofLastPtr       = 8
-	offsetofCellPtrArrOff = 12
-	sizeofPageType        = 1
-	sizeofFreeListOff     = 2
-	sizeofNumCells        = 2
-	sizeofCellArrOff      = 2
-	sizeofNumFragBytes    = 1
-	sizeofLastPtr         = 4
-	sizeofCellOff         = 2
+	offsetofPageType     = 0
+	offsetofFreeListOff  = 1
+	offsetofNumCells     = 3
+	offsetofCellArrOff   = 5
+	offsetofNumFragBytes = 7
+	offsetofLastPtr      = 8
+	offsetofCellPtrArr   = 12
+	sizeofPageType       = 1
+	sizeofFreeListOff    = 2
+	sizeofNumCells       = 2
+	sizeofCellArrOff     = 2
+	sizeofNumFragBytes   = 1
+	sizeofLastPtr        = 4
+	sizeofCellOff        = 2
 )
 
 const (
@@ -43,10 +43,11 @@ const (
 )
 
 const (
-	offsetofFreeBlockNextOff = 0
-	offsetofFreeBlockSize    = 2
-	sizeofFreeBlockNextOff   = 2
+	offsetofFreeBlockSize    = 0
+	offsetofFreeBlockNextOff = 2
 	sizeofFreeBlockSize      = 2
+	sizeofFreeBlockNextOff   = 2
+	sizeofFreeBlockHdr       = sizeofFreeBlockNextOff + sizeofFreeBlockSize
 )
 
 const (
@@ -55,7 +56,7 @@ const (
 )
 
 type freeBlock struct {
-	offset uint16
+	offset uint16 // not serialized
 	size   uint16
 	next   *freeBlock
 }
