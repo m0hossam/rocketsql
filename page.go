@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 )
 
-const (
+const ( // database constants
 	dbPageSize                = 512 // default is 4096 but can be any power of two between 512 and 65536
 	dbPageHdrSize             = 12
 	dbMaxLeafCellSize         = dbPageSize - dbPageHdrSize - sizeofCellOff
@@ -13,12 +13,19 @@ const (
 	dbNullPage         uint32 = 0
 )
 
-const (
-	interiorPage uint8 = iota
-	leafPage     uint8 = iota
+const ( // page types
+	interiorPage = iota
+	leafPage
 )
 
-const (
+const ( // database header constants
+	offsetofDbPageSize    = 0
+	offsetofDbFreePagePtr = 2
+	sizeofDbPageSize      = 2
+	sizeofDbFreePagePtr   = 4
+)
+
+const ( // page constants
 	offsetofPageType     = 0
 	offsetofFreeListOff  = 1
 	offsetofNumCells     = 3
@@ -35,14 +42,7 @@ const (
 	sizeofCellOff        = 2
 )
 
-const (
-	offsetofDbPageSize    = 0
-	offsetofDbFreePagePtr = 2
-	sizeofDbPageSize      = 2
-	sizeofDbFreePagePtr   = 4
-)
-
-const (
+const ( // free block constants
 	offsetofFreeBlockSize    = 0
 	offsetofFreeBlockNextOff = 2
 	sizeofFreeBlockSize      = 2
@@ -50,7 +50,7 @@ const (
 	sizeofFreeBlockHdr       = sizeofFreeBlockNextOff + sizeofFreeBlockSize
 )
 
-const (
+const ( // cell constants
 	sizeofCellKeySize   = 2
 	sizeofCellValueSize = 2
 )
