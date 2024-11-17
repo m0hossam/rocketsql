@@ -145,6 +145,8 @@ func compare(a []byte, b []byte) int {
 			bSize := int(binary.BigEndian.Uint16(b[bOffset : bOffset+2]))
 			bOffset += 2
 			res = strCompare(a[aOffset:aOffset+aSize], b[bOffset:bOffset+bSize])
+			aOffset += aSize
+			bOffset += bSize
 		case sqlVarchar:
 			aSize := int(binary.BigEndian.Uint16(a[aOffset : aOffset+2]))
 			aOffset += 2

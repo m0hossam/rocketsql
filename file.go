@@ -83,3 +83,13 @@ func loadPageFromDisk(path string, ptr uint32) ([]byte, error) {
 
 	return b, err
 }
+
+func getFirstFreePagePtr(path string) (*uint32, error) {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var firstFreePgPtr uint32 = uint32(fi.Size()/dbPageSize + 1)
+	return &firstFreePgPtr, nil
+}
