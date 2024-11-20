@@ -55,7 +55,7 @@ func savePageToDisk(path string, data []byte, ptr uint32) error {
 	}
 	defer f.Close() // file is now open, always close it after function returns
 
-	off := int64(ptr) * int64(dbPageSize) // offset to write at (pages are numbered from 0)
+	off := int64(ptr-1) * int64(dbPageSize) // offset to write at (pages are numbered from 1)
 	_, err = f.WriteAt(data, off)
 	if err != nil {
 		return err
@@ -90,6 +90,6 @@ func getFirstFreePagePtr(path string) (*uint32, error) {
 		return nil, err
 	}
 
-	var firstFreePgPtr uint32 = uint32(fi.Size()/dbPageSize + 1)
+	var firstFreePgPtr uint32 = uint32(fi.Size()/dbPageSize + 2)
 	return &firstFreePgPtr, nil
 }

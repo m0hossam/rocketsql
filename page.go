@@ -8,7 +8,8 @@ import (
 const ( // database constants
 	dbPageSize                = 512 // default is 4096 but can be any power of two between 512 and 65536
 	dbPageHdrSize             = 12
-	dbMaxCellSize             = (dbPageSize - dbPageHdrSize - 4*sizeofCellOff) / 4 // a page must fit atleast 4 cells
+	dbMinCellsPerPage         = 2
+	dbMaxCellSize             = (dbPageSize - dbPageHdrSize - dbMinCellsPerPage*sizeofCellOff) / dbMinCellsPerPage // a page must fit atleast 4 cells
 	dbMinFreeBlockSize        = 3
 	dbNullPage         uint32 = 0
 )
