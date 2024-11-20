@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"math"
 	"strconv"
 	"strings"
@@ -155,19 +155,110 @@ func serializeRow(colTypes []string, colVals []string) []byte {
 	return b
 }
 
-func insertIntoTable(tblName string, colNameType map[string]string, colNameVal map[string]string) {
+func searchTable(tblName string, primaryKey string) (string, error) {
+	pg1, err := loadPage(1)
+	if err != nil {
+		return "", err
+	}
 
+	serKey := serializeRow([]string{"VARCHAR(255)"}, []string{tblName})
+	serRow, pg := find(serKey, pg1)
+	if pg == dbNullPage {
+		return "", errors.New("did not find table in master table")
+	}
+
+	line := deserializeRow(serRow)
+	tokens := strings.Split(line, " ")
+	primaryKeyType := tokens[3]
+	serKey = serializeRow([]string{primaryKeyType}, []string{primaryKey})
+
+	num, _ := strconv.Atoi(tokens[1])
+	rootPgNo := uint32(num)
+	rootPg, err := loadPage(rootPgNo)
+	if err != nil {
+		return "", err
+	}
+
+	serRow, pg = find(serKey, rootPg)
+	if pg == dbNullPage {
+		return "", errors.New("did not find key in table")
+	}
+
+	return deserializeRow(serRow), nil
 }
 
-func createTable(tblName string, colNameType map[string]string) {
+func insertIntoTable(tblName string, colTypes []string, colVals []string) error {
+	pg1, err := loadPage(1)
+	if err != nil {
+		return err
+	}
+
+	serKey := serializeRow([]string{"VARCHAR(255)"}, []string{tblName})
+	serRow, pg := find(serKey, pg1)
+	if pg == dbNullPage {
+		return errors.New("did not find table in master table")
+	}
+
+	line := deserializeRow(serRow)
+	num, _ := strconv.Atoi(strings.Split(line, " ")[1])
+	rootPgNo := uint32(num)
+
+	serKey = serializeRow([]string{colTypes[0]}, []string{colVals[0]})
+	serRow = serializeRow(colTypes, colVals)
+
+	firstFreePtr, err := getFirstFreePagePtr(dbFilePath)
+	if err != nil {
+		return err
+	}
+
+	rootPg, err := loadPage(rootPgNo)
+	if err != nil {
+		return err
+	}
+
+	err = insert(rootPg, firstFreePtr, serKey, serRow, true, nil, dbNullPage, dbNullPage)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func createTable(tblName string, colNames []string, colTypes []string) error {
 	rootPageNo, err := getFirstFreePagePtr(dbFilePath)
 	if err != nil {
-		panic(err)
+		return err
 	}
+
 	sql := ""
-	for colName, colType := range colNameType {
-		sql += colName + " " + colType + " "
+	for idx, colName := range colNames {
+		sql += colName + " " + strings.ToUpper(colTypes[idx]) + " "
 	}
 	sql = strings.Trim(sql, " ")
-	fmt.Println(*rootPageNo)
+
+	serKey := serializeRow([]string{"VARCHAR(255)"}, []string{tblName})
+	serRow := serializeRow([]string{"VARCHAR(255)", "INT", "VARCHAR(255)"}, []string{tblName, strconv.Itoa(int(*rootPageNo)), sql})
+
+	tblRootPg, err := createPage(leafPage, rootPageNo)
+	if err != nil {
+		return err
+	}
+
+	pg1, err := loadPage(1)
+	if err != nil {
+		return err
+	}
+
+	err = insert(pg1, rootPageNo, serKey, serRow, true, nil, dbNullPage, dbNullPage)
+	if err != nil {
+		return err
+	}
+	pg1 = nil
+
+	err = saveNewPage(tblRootPg)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -1,24 +1,45 @@
 package main
 
-import (
-	"fmt"
-)
+import "fmt"
 
 func main() {
-	err := createDB("db.rocketsql")
+	err := openDB(dbFilePath)
 	if err != nil {
-		return
+		err = createDB("db.rocketsql")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 	}
 
 	_, err = getFirstFreePagePtr(dbFilePath)
 	if err != nil {
+		fmt.Println(err)
 		return
 	}
 
-	//colNames := []string{"ID", "Name", "Gender", "Age", "Salary"}
-	colTypes := []string{"INT", "VARCHAR(255)", "VARCHAR(255)", "SMALLINT", "NULL", "FLOAT"}
+	tblName := "Students"
+	colNames := []string{"ID", "Name", "Gender", "Age", "Salary"}
+	colTypes := []string{"INT", "VARCHAR(255)", "VARCHAR(255)", "SMALLINT", "FLOAT"}
 	colVals := []string{"42", "Mohamed Hossam", "Male", "22", "1337.66"}
-	serRow := serializeRow(colTypes, colVals)
-	fmt.Println(serRow)
-	fmt.Println(deserializeRow(serRow))
+
+	err = createTable(tblName, colNames, colTypes)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	err = insertIntoTable(tblName, colTypes, colVals)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	result, err := searchTable(tblName, "42")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(result)
 }

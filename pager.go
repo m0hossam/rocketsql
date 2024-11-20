@@ -13,6 +13,17 @@ func createDB(path string) error {
 	}
 	dbFilePath = path
 
+	firstFreePtr := uint32(1)
+	pg1, err := createPage(leafPage, &firstFreePtr)
+	if err != nil {
+		return err
+	}
+
+	err = saveNewPage(pg1)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -26,8 +37,8 @@ func openDB(path string) error {
 }
 
 func loadPage(ptr uint32) (*page, error) {
-	if ptr < 0 {
-		return nil, errors.New("page number cannot be negative")
+	if ptr == 0 {
+		return nil, errors.New("page numbers start from 1")
 	}
 	b, err := loadPageFromDisk(dbFilePath, ptr)
 	if err != nil {

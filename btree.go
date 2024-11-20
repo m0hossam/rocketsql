@@ -217,10 +217,14 @@ func insert(rootPg *page, firstFreePtr *uint32, key []byte, value []byte, leafIn
 		value: value,
 	}
 
+	if leafInsert {
+		path = getPath(key, rootPg)
+	}
+
 	if len(path) == 0 { // creating new root
 		newPg, err := createPage(rootPg.pType, firstFreePtr)
 		if err != nil {
-			return nil
+			return err
 		}
 
 		copyPage(newPg, rootPg)
@@ -229,11 +233,12 @@ func insert(rootPg *page, firstFreePtr *uint32, key []byte, value []byte, leafIn
 		rootPg.pType = interiorPage
 		rootPg.lastPtr = newChild
 		insertCell(rootPg, newCell, 0, uint16(dbPageSize-len(newCell.key)-len(newCell.value)-4))
-		return nil
-	}
 
-	if leafInsert {
-		path = getPath(key, rootPg)
+		err = savePage(rootPg)
+		if err != nil {
+			return err
+		}
+		return saveNewPage(newPg)
 	}
 
 	pg, err := loadPage(path[len(path)-1])
@@ -260,7 +265,7 @@ func insert(rootPg *page, firstFreePtr *uint32, key []byte, value []byte, leafIn
 
 	err = insertIntoPage(pg, newCell, ind)
 	if err == nil {
-		return nil
+		return savePage(pg)
 	}
 
 	// Split case
