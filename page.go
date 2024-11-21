@@ -8,8 +8,8 @@ import (
 const ( // database constants
 	dbPageSize                = 512 // default is 4096 but can be any power of two between 512 and 65536
 	dbPageHdrSize             = 12
-	dbMinCellsPerPage         = 2
-	dbMaxCellSize             = (dbPageSize - dbPageHdrSize - dbMinCellsPerPage*sizeofCellOff) / dbMinCellsPerPage // a page must fit atleast 4 cells
+	dbMinCellsPerPage         = 2 // should be atleat 2 to avoid insertion corner cases
+	dbMaxCellSize             = (dbPageSize - dbPageHdrSize - dbMinCellsPerPage*sizeofCellOff) / dbMinCellsPerPage
 	dbMinFreeBlockSize        = 3
 	dbNullPage         uint32 = 0
 )
@@ -109,11 +109,17 @@ func truncatePage(p *page) {
 func copyPage(dst *page, src *page) {
 	dst.pType = src.pType
 	dst.freeList = &freeBlock{}
-	*dst.freeList = *src.freeList
+	if src.freeList != nil {
+		dst.freeList = &freeBlock{}
+		*dst.freeList = *src.freeList
+	} else {
+		dst.freeList = nil
+	}
 	dst.nCells = src.nCells
 	dst.cellArrOff = src.cellArrOff
 	dst.nFragBytes = src.nFragBytes
 	dst.lastPtr = src.lastPtr
+	dst.cellPtrArr = make([]uint16, len(src.cellPtrArr))
 	copy(dst.cellPtrArr, src.cellPtrArr)
 	dst.cells = map[uint16]cell{}
 	for k, v := range src.cells {

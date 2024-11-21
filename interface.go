@@ -216,7 +216,7 @@ func insertIntoTable(tblName string, colTypes []string, colVals []string) error 
 		return err
 	}
 
-	err = insert(rootPg, firstFreePtr, serKey, serRow, true, nil, dbNullPage, dbNullPage)
+	err = insert(rootPg, serKey, serRow, firstFreePtr)
 	if err != nil {
 		return err
 	}
@@ -243,19 +243,17 @@ func createTable(tblName string, colNames []string, colTypes []string) error {
 	if err != nil {
 		return err
 	}
+	err = saveNewPage(tblRootPg)
+	if err != nil {
+		return err
+	}
 
 	pg1, err := loadPage(1)
 	if err != nil {
 		return err
 	}
 
-	err = insert(pg1, rootPageNo, serKey, serRow, true, nil, dbNullPage, dbNullPage)
-	if err != nil {
-		return err
-	}
-	pg1 = nil
-
-	err = saveNewPage(tblRootPg)
+	err = insert(pg1, serKey, serRow, rootPageNo)
 	if err != nil {
 		return err
 	}

@@ -203,97 +203,92 @@ func getOverfullCellArr(pg *page, newCell cell, ind int) []cell {
 	return cells
 }
 
-func insert(rootPg *page, firstFreePtr *uint32, key []byte, value []byte, leafInsert bool, path []uint32, oldChild uint32, newChild uint32) error {
-	cellSize := len(key) + len(value) + 2
-	if leafInsert {
-		cellSize += 2
-	}
-	if cellSize > dbMaxCellSize {
+func interiorInsert(path []uint32, key []byte, value []byte, newChild uint32, firstFreePtr *uint32) error {
+	if (len(key) + len(value) + 2) > dbMaxCellSize {
 		return errors.New("max cell size exceeded")
+	}
+
+	if len(path) == 0 { // creating new root
+		rootPgNo := binary.BigEndian.Uint32(value)
+		rootPg, err := loadPage(rootPgNo)
+		if err != nil {
+			return err
+		}
+
+		newPg, err := createPage(rootPg.pType, firstFreePtr)
+		if err != nil {
+			return err
+		}
+
+		valBuf := make([]byte, 4)
+		binary.BigEndian.PutUint32(valBuf, newPg.id)
+		newCell := cell{
+			key:   key,
+			value: valBuf, // because value will point to the root
+		}
+
+		copyPage(newPg, rootPg)
+		truncatePage(rootPg)
+		rootPg.pType = interiorPage
+		rootPg.lastPtr = newChild
+		insertCell(rootPg, newCell, 0, uint16(dbPageSize-len(newCell.key)-len(newCell.value)-2))
+
+		err = saveNewPage(newPg)
+		if err != nil {
+			return err
+		}
+		err = savePage(rootPg)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	newCell := cell{
 		key:   key,
 		value: value,
 	}
-
-	if leafInsert {
-		path = getPath(key, rootPg)
-	}
-
-	if len(path) == 0 { // creating new root
-		newPg, err := createPage(rootPg.pType, firstFreePtr)
-		if err != nil {
-			return err
-		}
-
-		copyPage(newPg, rootPg)
-
-		truncatePage(rootPg)
-		rootPg.pType = interiorPage
-		rootPg.lastPtr = newChild
-		insertCell(rootPg, newCell, 0, uint16(dbPageSize-len(newCell.key)-len(newCell.value)-4))
-
-		err = savePage(rootPg)
-		if err != nil {
-			return err
-		}
-		return saveNewPage(newPg)
-	}
-
 	pg, err := loadPage(path[len(path)-1])
 	if err != nil {
 		return err
 	}
-
 	ind, err := upperBoundIndex(pg, key)
 	if err != nil {
 		return err
 	}
-
-	if !leafInsert {
-		if ind < int(pg.nCells) {
-			buf := make([]byte, 4)
-			binary.BigEndian.PutUint32(buf, newChild)
-			c := pg.cells[pg.cellPtrArr[ind]]
-			c.value = buf
-			pg.cells[pg.cellPtrArr[ind]] = c
-		} else {
-			pg.lastPtr = newChild
-		}
+	if ind == int(pg.nCells) {
+		pg.lastPtr = newChild
+	} else {
+		buf := make([]byte, 4)
+		binary.BigEndian.PutUint32(buf, newChild)
+		c := pg.cells[pg.cellPtrArr[ind]]
+		c.value = buf
+		pg.cells[pg.cellPtrArr[ind]] = c
 	}
-
 	err = insertIntoPage(pg, newCell, ind)
 	if err == nil {
 		return savePage(pg)
 	}
 
-	// Split case
-
 	cells := getOverfullCellArr(pg, newCell, ind)
-	tempPtr := pg.lastPtr
 	mid := len(cells) / 2
-	if leafInsert {
-		mid = (len(cells) + 1) / 2
+
+	newPg, err := createPage(interiorPage, firstFreePtr)
+	if err != nil {
+		return err
 	}
+	newPg.lastPtr = newChild
 
 	truncatePage(pg)
+	pg.lastPtr = binary.BigEndian.Uint32(cells[mid].value)
+
 	for i := 0; i < mid; i++ {
 		err = insertIntoPage(pg, cells[i], i)
 		if err != nil {
 			return err
 		}
 	}
-
-	newPg, err := createPage(interiorPage, firstFreePtr)
-	if err != nil {
-		return err
-	}
-	if leafInsert {
-		newPg.pType = leafPage
-	}
-	newPg.lastPtr = tempPtr
-
 	for i := mid + 1; i < len(cells); i++ {
 		err = insertIntoPage(newPg, cells[i], i-mid-1)
 		if err != nil {
@@ -301,28 +296,85 @@ func insert(rootPg *page, firstFreePtr *uint32, key []byte, value []byte, leafIn
 		}
 	}
 
-	if leafInsert {
-		pg.lastPtr = newPg.id
-		insertIntoPage(pg, cells[mid], mid)
-		mid = mid + 1 // first cell in new page
-	} else {
-		pg.lastPtr = binary.BigEndian.Uint32(cells[mid].value)
-	}
-
-	err = insert(rootPg, firstFreePtr, cells[mid].key, cells[mid].value, false, path[:len(path)-1], pg.id, newPg.id)
-	if err != nil {
-		return err
-	}
-
-	err = savePage(rootPg)
-	if err != nil {
-		return err
-	}
 	err = savePage(pg)
 	if err != nil {
 		return err
 	}
 	err = saveNewPage(newPg)
+	if err != nil {
+		return err
+	}
+
+	valBuf := make([]byte, 4)
+	binary.BigEndian.PutUint32(valBuf, pg.id)
+	err = interiorInsert(path[:len(path)-1], cells[mid].key, valBuf, newPg.id, firstFreePtr)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func insert(rootPg *page, key []byte, value []byte, firstFreePtr *uint32) error {
+	if (len(key) + len(value) + 4) > dbMaxCellSize {
+		return errors.New("max cell size exceeded")
+	}
+
+	newCell := cell{
+		key:   key,
+		value: value,
+	}
+	path := getPath(key, rootPg)
+	pg, err := loadPage(path[len(path)-1])
+	if err != nil {
+		return err
+	}
+	ind, err := upperBoundIndex(pg, key)
+	if err != nil {
+		return err
+	}
+	err = insertIntoPage(pg, newCell, ind)
+	if err == nil {
+		return savePage(pg)
+	}
+
+	cells := getOverfullCellArr(pg, newCell, ind)
+	mid := (len(cells) + 1) / 2
+
+	newPg, err := createPage(leafPage, firstFreePtr)
+	if err != nil {
+		return err
+	}
+	newPg.lastPtr = pg.lastPtr
+
+	truncatePage(pg)
+	pg.lastPtr = newPg.id
+
+	for i := 0; i < mid; i++ {
+		err = insertIntoPage(pg, cells[i], i)
+		if err != nil {
+			return err
+		}
+	}
+	for i := mid; i < len(cells); i++ {
+		err = insertIntoPage(newPg, cells[i], i-mid)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = savePage(pg)
+	if err != nil {
+		return err
+	}
+	err = saveNewPage(newPg)
+	if err != nil {
+		return err
+	}
+
+	valBuf := make([]byte, 4)
+	binary.BigEndian.PutUint32(valBuf, pg.id)
+	err = interiorInsert(path[:len(path)-1], newPg.cells[newPg.cellPtrArr[0]].key, valBuf, newPg.id, firstFreePtr)
 	if err != nil {
 		return err
 	}
