@@ -7,16 +7,7 @@ import (
 )
 
 func main() {
-	err := openDB(dbFilePath)
-	if err != nil {
-		err = createDB("db.rocketsql")
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-	}
-
-	createMultipleTablesTest(100)
+	textbookTest()
 }
 
 func dispPage(pg *page) {
@@ -81,13 +72,19 @@ func dispBtree(root *page) error { // generic BFS
 }
 
 func simpleTest() {
+	err := createDB("db.rocketsql")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	tblName := "Students"
 	colNames := []string{"ID", "Name", "Gender", "Age", "Salary"}
 	colTypes := []string{"INT", "VARCHAR(255)", "VARCHAR(255)", "SMALLINT", "FLOAT"}
 	colVals := []string{"42", "Mohamed Hossam", "Male", "22", "1337.66"}
 	colVals2 := []string{"13", "George Miller", "Male", "35", "-999.205"}
 
-	err := createTable(tblName, colNames, colTypes)
+	err = createTable(tblName, colNames, colTypes)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -121,6 +118,12 @@ func simpleTest() {
 }
 
 func createMultipleTablesTest(n int) {
+	err := createDB("db.rocketsql")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	tblName := "Students"
 	colNames := []string{"ID", "Name", "Gender", "Age", "Salary"}
 	colTypes := []string{"INT", "VARCHAR(255)", "VARCHAR(255)", "SMALLINT", "FLOAT"}
@@ -141,20 +144,55 @@ func createMultipleTablesTest(n int) {
 	dispBtree(pg1)
 
 	fmt.Println("============================================================")
+}
 
-	/*
-		p, err := getFirstFreePagePtr(dbFilePath)
+func textbookTest() { // Database System Concepts 7th Edition, P.636 Fig. 14.9
+	err := createDB("db.rocketsql")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	tblName := "Instructors"
+	colNames := []string{"Name", "Dept", "Salary"}
+	colTypes := []string{"VARCHAR(255)", "VARCHAR(255)", "INT"}
+	allColVals := [][]string{{"Brandt", "Comp. Sci.", "92000"},
+		{"Califieri", "History", "60000"},
+		{"Einstein", "Physics", "95000"},
+		{"El Said", "History", "80000"},
+		{"Gold", "Physics", "87000"},
+		{"Katz", "Comp. Sci.", "75000"},
+		{"Mozart", "Music", "40000"},
+		{"Singh", "Finance", "80000"},
+		{"Srinivasan", "Comp. Sci.", "65000"},
+		{"Wu", "Finance", "90000"},
+		{"Crick", "Biology", "72000"},
+		{"Kim", "Elec. Eng.", "80000"},
+		{"Adams", "Music", "45000"},
+		{"Lamport", "History", "82000"}}
+
+	err = createTable(tblName, colNames, colTypes)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for _, colVals := range allColVals {
+		err = insertIntoTable(tblName, colTypes, colVals)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		for i := uint32(1); i <= *(p)-1; i++ {
-			pg, err := loadPage(i)
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			dispPage(pg)
-		}
-	*/
+	}
+
+	p2, err := loadPage(2)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	err = dispBtree(p2)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 }

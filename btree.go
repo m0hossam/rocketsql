@@ -141,6 +141,10 @@ func defragPage(pg *page) {
 }
 
 func insertIntoPage(pg *page, c cell, ind int) error {
+	if pg.nCells == dbMaxCellsPerPage {
+		return errors.New("page does not have enough space (soft limit), need to split")
+	}
+
 	cellSize := uint16(2 + len(c.key) + len(c.value))
 	if pg.pType == leafPage {
 		cellSize += 2
@@ -175,8 +179,12 @@ func insertIntoPage(pg *page, c cell, ind int) error {
 					prev.next = head.next // remove the current block
 				}
 				newOff := head.offset
-				insertCell(pg, c, ind, newOff) // should always succeed
-				pg.nFragBytes += uint8(remSz)  // TODO: defrag if overflow happens
+				insertCell(pg, c, ind, newOff)           // should always succeed
+				if int(pg.nFragBytes)+int(remSz) > 255 { // uint8 overflow precaution
+					defragPage(pg)
+				} else {
+					pg.nFragBytes += uint8(remSz)
+				}
 			}
 			return nil
 		}
