@@ -16,7 +16,7 @@ func main() {
 		}
 	}
 
-	createTenTablesTest()
+	createMultipleTablesTest(100)
 }
 
 func dispPage(pg *page) {
@@ -120,12 +120,12 @@ func simpleTest() {
 	dispBtree(pg2)
 }
 
-func createTenTablesTest() {
+func createMultipleTablesTest(n int) {
 	tblName := "Students"
 	colNames := []string{"ID", "Name", "Gender", "Age", "Salary"}
 	colTypes := []string{"INT", "VARCHAR(255)", "VARCHAR(255)", "SMALLINT", "FLOAT"}
 
-	for i := 1; i <= 10; i++ {
+	for i := 1; i <= n; i++ {
 		err := createTable(tblName+strconv.Itoa(i), colNames, colTypes)
 		if err != nil {
 			fmt.Println(err)

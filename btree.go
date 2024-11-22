@@ -115,7 +115,7 @@ func insertCell(pg *page, c cell, ind int, newOff uint16) {
 	pg.cells[newOff] = c
 	pg.nCells++
 
-	if newOff < pg.cellArrOff {
+	if newOff < pg.cellArrOff { // keep track of closest cell to the top of the page
 		pg.cellArrOff = newOff
 	}
 }
@@ -146,12 +146,24 @@ func insertIntoPage(pg *page, c cell, ind int) error {
 		cellSize += 2
 	}
 
+	unallocatedSpace := pg.cellArrOff - (offsetofCellPtrArr + sizeofCellOff*pg.nCells) // space between last cell ptr and first cell
+	totalFreeSize := uint16(unallocatedSpace) + uint16(pg.nFragBytes)
+	for head := pg.freeList; head != nil; head = head.next {
+		totalFreeSize += head.size
+	}
+
+	if totalFreeSize < cellSize+sizeofCellOff {
+		return errors.New("page does not have enough space, need to split")
+	}
+
+	if unallocatedSpace < sizeofCellOff {
+		defragPage(pg)
+		unallocatedSpace = pg.cellArrOff - (offsetofCellPtrArr + sizeofCellOff*pg.nCells) // variable must be recalculated here because it's used again
+	}
+
 	var prev *freeBlock = nil
 	head := pg.freeList
-	freeBlocksSize := uint16(0)
 	for head != nil { // first-fit singly linked list traversal
-		freeBlocksSize += head.size
-
 		if cellSize <= head.size {
 			remSz := head.size - cellSize
 			if remSz >= 4 { // new block takes upper half of old block
@@ -173,19 +185,14 @@ func insertIntoPage(pg *page, c cell, ind int) error {
 		head = head.next
 	}
 
-	unallocatedSpace := pg.cellArrOff - offsetofCellPtrArr - sizeofCellOff // unallocated space minus sizeof cell offset (2 bytes)
-	if unallocatedSpace >= cellSize {
-		newOff := pg.cellArrOff - cellSize
-		insertCell(pg, c, ind, newOff) // should always succeed
-		return nil
-	}
-
-	if unallocatedSpace+uint16(pg.nFragBytes)+freeBlocksSize >= cellSize {
+	if unallocatedSpace < cellSize+sizeofCellOff {
 		defragPage(pg)
-		return insertIntoPage(pg, c, ind) // should always succeed
 	}
 
-	return errors.New("page does not have enough space, need to split")
+	newOff := pg.cellArrOff - cellSize
+	insertCell(pg, c, ind, newOff) // should always succeed
+
+	return nil
 }
 
 func getOverfullCellArr(pg *page, newCell cell, ind int) []cell {
