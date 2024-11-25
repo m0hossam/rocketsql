@@ -170,7 +170,7 @@ func insertIntoPage(pg *page, c cell, ind int) error {
 	for head != nil { // first-fit singly linked list traversal
 		if cellSize <= head.size {
 			remSz := head.size - cellSize
-			if remSz >= 4 { // new block takes upper half of old block
+			if remSz >= dbMinFreeBlockSize { // new block takes upper half of old block
 				head.size = remSz
 				newOff := head.offset + remSz
 				insertCell(pg, c, ind, newOff) // should always succeed
@@ -393,6 +393,11 @@ func insert(rootPg *page, key []byte, value []byte, firstFreePtr *uint32) error 
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func delete(rootPg *page, key []byte, firstFreePtr *uint32) error {
 
 	return nil
 }

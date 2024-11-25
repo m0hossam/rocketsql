@@ -5,13 +5,16 @@ import (
 	"sync/atomic"
 )
 
+var (
+	dbMaxCellsPerPage uint16 = 3 // for testing purposes
+)
+
 const ( // database constants
 	dbPageSize                = 512 // default is 4096 but can be any power of two between 512 and 65536
 	dbPageHdrSize             = 12
 	dbMinCellsPerPage         = 2 // should be atleat 2 to avoid insertion corner cases
-	dbMaxCellsPerPage         = 3 // for testing purposes
 	dbMaxCellSize             = (dbPageSize - dbPageHdrSize - dbMinCellsPerPage*sizeofCellOff) / dbMinCellsPerPage
-	dbMinFreeBlockSize        = 3
+	dbMinFreeBlockSize        = 4
 	dbNullPage         uint32 = 0
 )
 
