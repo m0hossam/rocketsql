@@ -1,6 +1,6 @@
 ******************* LEVEL 1 *******************
 #############################
-ID: 2
+ID: 3
 Type: Interior
 Offset of first free block: NO FREE BLOCKS
 No. of Cells: 2
@@ -9,15 +9,15 @@ No. of fragmented bytes: 0
 	Cell[0]:
 		Offset: 482
 		Key: Gold
-		Ptr: 9
+		Ptr: 10
 	Cell[1]:
 		Offset: 496
 		Key: Mozart
-		Ptr: 12
-Rightmost Ptr: 8
+		Ptr: 13
+Rightmost Ptr: 9
 ******************* LEVEL 2 *******************
 #############################
-ID: 9
+ID: 10
 Type: Interior
 Offset of first free block: NO FREE BLOCKS
 No. of Cells: 2
@@ -26,14 +26,14 @@ No. of fragmented bytes: 0
 	Cell[0]:
 		Offset: 493
 		Key: Califieri
-		Ptr: 4
+		Ptr: 5
 	Cell[1]:
 		Offset: 475
 		Key: Einstein
-		Ptr: 10
-Rightmost Ptr: 3
+		Ptr: 11
+Rightmost Ptr: 4
 #############################
-ID: 12
+ID: 13
 Type: Interior
 Offset of first free block: NO FREE BLOCKS
 No. of Cells: 1
@@ -42,10 +42,10 @@ No. of fragmented bytes: 0
 	Cell[0]:
 		Offset: 499
 		Key: Kim
-		Ptr: 5
-Rightmost Ptr: 11
+		Ptr: 6
+Rightmost Ptr: 12
 #############################
-ID: 8
+ID: 9
 Type: Interior
 Offset of first free block: NO FREE BLOCKS
 No. of Cells: 1
@@ -54,11 +54,11 @@ No. of fragmented bytes: 0
 	Cell[0]:
 		Offset: 492
 		Key: Srinivasan
-		Ptr: 6
-Rightmost Ptr: 7
+		Ptr: 7
+Rightmost Ptr: 8
 ******************* LEVEL 3 *******************
 #############################
-ID: 4
+ID: 5
 Type: Leaf
 Offset of first free block: NO FREE BLOCKS
 No. of Cells: 2
@@ -72,9 +72,9 @@ No. of fragmented bytes: 0
 		Offset: 435
 		Key: Brandt
 		Row: Brandt Comp. Sci. 92000
-Rightmost Ptr: 10
+Rightmost Ptr: 11
 #############################
-ID: 10
+ID: 11
 Type: Leaf
 Offset of first free block: NO FREE BLOCKS
 No. of Cells: 2
@@ -88,9 +88,9 @@ No. of fragmented bytes: 0
 		Offset: 430
 		Key: Crick
 		Row: Crick Biology 72000
-Rightmost Ptr: 3
+Rightmost Ptr: 4
 #############################
-ID: 3
+ID: 4
 Type: Leaf
 Offset of first free block: NO FREE BLOCKS
 No. of Cells: 2
@@ -104,9 +104,9 @@ No. of fragmented bytes: 0
 		Offset: 428
 		Key: El Said
 		Row: El Said History 80000
-Rightmost Ptr: 5
+Rightmost Ptr: 6
 #############################
-ID: 5
+ID: 6
 Type: Leaf
 Offset of first free block: NO FREE BLOCKS
 No. of Cells: 2
@@ -120,9 +120,9 @@ No. of fragmented bytes: 0
 		Offset: 439
 		Key: Katz
 		Row: Katz Comp. Sci. 75000
-Rightmost Ptr: 11
+Rightmost Ptr: 12
 #############################
-ID: 11
+ID: 12
 Type: Leaf
 Offset of first free block: NO FREE BLOCKS
 No. of Cells: 2
@@ -136,9 +136,9 @@ No. of fragmented bytes: 0
 		Offset: 435
 		Key: Lamport
 		Row: Lamport History 82000
-Rightmost Ptr: 6
+Rightmost Ptr: 7
 #############################
-ID: 6
+ID: 7
 Type: Leaf
 Offset of first free block: NO FREE BLOCKS
 No. of Cells: 2
@@ -152,9 +152,9 @@ No. of fragmented bytes: 0
 		Offset: 438
 		Key: Singh
 		Row: Singh Finance 80000
-Rightmost Ptr: 7
+Rightmost Ptr: 8
 #############################
-ID: 7
+ID: 8
 Type: Leaf
 Offset of first free block: NO FREE BLOCKS
 No. of Cells: 2

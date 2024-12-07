@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestInsertionInteriorOverflow(t *testing.T) { // Database System Concepts 7th Edition, Pages 636-642-643, Figures 14.9-14.14-14.15
+func TestInsertion(t *testing.T) { // Database System Concepts 7th Edition, Pages 636-642-643, Figures 14.9-14.14-14.15
 	err := createDB("db.rocketsql")
 	if err != nil {
 		t.Fatal(err)
@@ -52,7 +52,7 @@ func TestInsertionInteriorOverflow(t *testing.T) { // Database System Concepts 7
 			t.Fatal(err)
 		}
 
-		p2, err := loadPage(2)
+		rootPg, err := loadPage(3)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -60,7 +60,7 @@ func TestInsertionInteriorOverflow(t *testing.T) { // Database System Concepts 7
 		expected := expectedFiles[idx]
 		actual := "output.txt"
 
-		err = dumpBtree(p2, actual)
+		err = dumpBtree(rootPg, actual)
 		if err != nil {
 			t.Fatal(err)
 		}

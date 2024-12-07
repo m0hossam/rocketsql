@@ -7,8 +7,8 @@ import (
 
 /*
 Simplifying assumptions:
-- Max cell size is (dbPageSize - dbPageHdrSize - 4*sizeofCellOffset) / 4
-- to avoid cases where you need to create two new pages for insertion
+- Max cell size is designed such that at least 2 cells can fit in a page
+- to avoid cases where we need to create two new pages for insertion
 */
 
 func getPath(key []byte, root *page) []uint32 { // returns page numbers from the root of the table the to leaf that should contain the key
@@ -177,6 +177,8 @@ func insertIntoPage(pg *page, c cell, ind int) error {
 			} else { // new frag takes lower half
 				if prev != nil {
 					prev.next = head.next // remove the current block
+				} else { // remove head
+					pg.freeList = nil
 				}
 				newOff := head.offset
 				insertCell(pg, c, ind, newOff)           // should always succeed
@@ -397,7 +399,90 @@ func insert(rootPg *page, key []byte, value []byte, firstFreePtr *uint32) error 
 	return nil
 }
 
-func delete(rootPg *page, key []byte, firstFreePtr *uint32) error {
+func insertFreeBlock(pg *page, newFreeBlock *freeBlock) {
+	if pg.freeList == nil || newFreeBlock.offset < pg.freeList.offset {
+		newFreeBlock.next = pg.freeList
+		pg.freeList = newFreeBlock
+	} else {
+		cur := pg.freeList
+		for cur.next != nil && cur.next.offset < newFreeBlock.offset {
+			cur = cur.next
+		}
+		newFreeBlock.next = cur.next
+		cur.next = newFreeBlock
+	}
+
+	cur := pg.freeList
+	for cur != nil && cur.next != nil {
+		if cur.offset+cur.size == cur.next.offset { // merge contiguous blocks
+			cur.size += cur.next.size
+			cur.next = cur.next.next
+		} else {
+			cur = cur.next
+		}
+	}
+}
+
+func removeCell(pg *page, ind int) {
+	off := pg.cellPtrArr[ind]
+	c := pg.cells[off]
+	cellSize := uint16(2 + len(c.key) + len(c.value))
+	if pg.pType == leafPage {
+		cellSize += 2
+	}
+
+	delete(pg.cells, off)
+	pg.cellPtrArr = append(pg.cellPtrArr[:ind], pg.cellPtrArr[ind+1:]...)
+	pg.nCells--
+
+	if off == pg.cellArrOff {
+		pg.cellArrOff += cellSize
+	} else {
+		newFreeBlock := &freeBlock{
+			offset: off,
+			size:   cellSize,
+		}
+		insertFreeBlock(pg, newFreeBlock)
+	}
+}
+
+func remove(rootPg *page, key []byte, firstFreePtr *uint32) error {
+	path := getPath(key, rootPg)
+	ptr := path[len(path)-1]
+	pg, err := loadPage(ptr)
+	if err != nil {
+		return err
+	}
+
+	l := 0
+	r := int(pg.nCells) - 1
+	ind := -1
+	for l <= r { // binary search
+		m := (l + r) / 2
+		c := pg.cells[pg.cellPtrArr[m]]
+		k := c.key
+		cmp := compare(k, key)
+		if cmp == firstEqualSecond {
+			ind = m
+			break
+		}
+		if cmp == firstLessThanSecond {
+			l = m + 1
+		}
+		if cmp == firstGreaterThanSecond {
+			r = m - 1
+		}
+	}
+
+	if ind == -1 {
+		return errors.New("key not found")
+	}
+
+	removeCell(pg, ind)
+	err = savePage(pg)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

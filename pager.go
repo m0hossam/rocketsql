@@ -1,6 +1,9 @@
 package main
 
-import "errors"
+import (
+	"errors"
+	"strconv"
+)
 
 var (
 	dbFilePath string = "db.rocketsql" // default value
@@ -14,12 +17,32 @@ func createDB(path string) error {
 	dbFilePath = path
 
 	firstFreePtr := uint32(1)
-	pg1, err := createPage(leafPage, &firstFreePtr)
+
+	pg1, err := createPage(leafPage, &firstFreePtr) // schema table
+	if err != nil {
+		return err
+	}
+
+	pg2, err := createPage(leafPage, &firstFreePtr) // auto-inc table
 	if err != nil {
 		return err
 	}
 
 	err = saveNewPage(pg1)
+	if err != nil {
+		return err
+	}
+
+	err = saveNewPage(pg2)
+	if err != nil {
+		return err
+	}
+
+	// table name - id
+	serKey := serializeRow([]string{"VARCHAR(255)"}, []string{"first_free_page"})
+	serRow := serializeRow([]string{"VARCHAR(255)", "INT"}, []string{"first_free_page", strconv.Itoa(0)})
+
+	err = insert(pg2, serKey, serRow, &firstFreePtr)
 	if err != nil {
 		return err
 	}

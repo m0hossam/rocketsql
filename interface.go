@@ -224,6 +224,42 @@ func insertIntoTable(tblName string, colTypes []string, colVals []string) error 
 	return nil
 }
 
+func deleteFromTable(tblName string, keyTypes []string, keyVals []string) error {
+	pg1, err := loadPage(1)
+	if err != nil {
+		return err
+	}
+
+	serKey := serializeRow([]string{"VARCHAR(255)"}, []string{tblName})
+	serRow, pg := find(serKey, pg1)
+	if pg == dbNullPage {
+		return errors.New("did not find table in master table")
+	}
+
+	line := deserializeRow(serRow)
+	num, _ := strconv.Atoi(strings.Split(line, " ")[1])
+	rootPgNo := uint32(num)
+
+	serKey = serializeRow(keyTypes, keyVals)
+
+	firstFreePtr, err := getFirstFreePagePtr(dbFilePath)
+	if err != nil {
+		return err
+	}
+
+	rootPg, err := loadPage(rootPgNo)
+	if err != nil {
+		return err
+	}
+
+	err = remove(rootPg, serKey, firstFreePtr)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func createTable(tblName string, colNames []string, colTypes []string) error {
 	rootPageNo, err := getFirstFreePagePtr(dbFilePath)
 	if err != nil {
@@ -236,6 +272,7 @@ func createTable(tblName string, colNames []string, colTypes []string) error {
 	}
 	sql = strings.Trim(sql, " ")
 
+	// table name - root page no. - schema
 	serKey := serializeRow([]string{"VARCHAR(255)"}, []string{tblName})
 	serRow := serializeRow([]string{"VARCHAR(255)", "INT", "VARCHAR(255)"}, []string{tblName, strconv.Itoa(int(*rootPageNo)), sql})
 
