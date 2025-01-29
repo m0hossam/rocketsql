@@ -27,8 +27,8 @@ go.work.sum
 # Database file
 *.rocketsql
 
-# .txt files used for testing
-*.txt
+# Temporary files used for testing
+/temp
 
 # Do not ignore expected results of test cases
 !test_data/*.txt

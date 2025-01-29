@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"errors"
@@ -84,7 +84,7 @@ func loadPageFromDisk(path string, ptr uint32) ([]byte, error) {
 	return b, err
 }
 
-func getFirstFreePagePtr(path string) (*uint32, error) {
+func GetFirstFreePagePtr(path string) (*uint32, error) {
 	fi, err := os.Stat(path)
 	if err != nil {
 		return nil, err

@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	dbMaxCellsPerPage uint16 = 3 // for testing purposes
+	DbMaxCellsPerPage uint16 = 3 // for testing purposes
 )
 
 const ( // database constants
@@ -15,12 +15,12 @@ const ( // database constants
 	dbMinCellsPerPage         = 2 // should be atleat 2 to avoid insertion corner cases
 	dbMaxCellSize             = (dbPageSize - dbPageHdrSize - dbMinCellsPerPage*sizeofCellOff) / dbMinCellsPerPage
 	dbMinFreeBlockSize        = 4
-	dbNullPage         uint32 = 0
+	DbNullPage         uint32 = 0
 )
 
 const ( // page types
-	interiorPage = iota
-	leafPage
+	InteriorPage = iota
+	LeafPage
 )
 
 const ( // database header constants
@@ -83,8 +83,8 @@ type page struct {
 	cells      map[uint16]cell
 }
 
-func createPage(pType uint8, firstFreePtr *uint32) (*page, error) {
-	if pType != interiorPage && pType != leafPage { // invalid type
+func CreatePage(pType uint8, firstFreePtr *uint32) (*page, error) {
+	if pType != InteriorPage && pType != LeafPage { // invalid type
 		return nil, errors.New("invalid page type")
 	}
 	p := &page{
@@ -93,7 +93,7 @@ func createPage(pType uint8, firstFreePtr *uint32) (*page, error) {
 		nCells:     0,
 		cellArrOff: dbPageSize,
 		nFragBytes: 0,
-		lastPtr:    dbNullPage,
+		lastPtr:    DbNullPage,
 		cellPtrArr: []uint16{},
 		cells:      map[uint16]cell{},
 	}
@@ -105,7 +105,7 @@ func truncatePage(p *page) {
 	p.nCells = 0
 	p.cellArrOff = dbPageSize
 	p.nFragBytes = 0
-	p.lastPtr = dbNullPage
+	p.lastPtr = DbNullPage
 	p.cellPtrArr = []uint16{}
 	p.cells = map[uint16]cell{}
 }

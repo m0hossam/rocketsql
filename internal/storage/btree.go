@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"encoding/binary"
@@ -14,7 +14,7 @@ Simplifying assumptions:
 func getPath(key []byte, root *page) []uint32 { // returns page numbers from the root of the table the to leaf that should contain the key
 	cur := root
 	path := []uint32{root.id}
-	for cur.pType != leafPage { // find the leaf page that should contain the key, takes O(H * log(N)) where H is the tree height and N is the max no. of keys in a page
+	for cur.pType != LeafPage { // find the leaf page that should contain the key, takes O(H * log(N)) where H is the tree height and N is the max no. of keys in a page
 		l := 0
 		r := int(cur.nCells) - 1
 		ind := int(cur.nCells)
@@ -36,7 +36,7 @@ func getPath(key []byte, root *page) []uint32 { // returns page numbers from the
 			}
 		}
 
-		ptr := dbNullPage
+		ptr := DbNullPage
 		if ind == int(cur.nCells) {
 			ptr = cur.lastPtr
 		} else {
@@ -45,7 +45,7 @@ func getPath(key []byte, root *page) []uint32 { // returns page numbers from the
 		}
 
 		var err error
-		cur, err = loadPage(ptr)
+		cur, err = LoadPage(ptr)
 		if err != nil {
 			return nil
 		}
@@ -54,12 +54,12 @@ func getPath(key []byte, root *page) []uint32 { // returns page numbers from the
 	return path
 }
 
-func find(key []byte, root *page) ([]byte, uint32) { // returns raw tuple data and the containing page number
+func BtreeGet(key []byte, root *page) ([]byte, uint32) { // returns raw tuple data and the containing page number
 	path := getPath(key, root)
 	ptr := path[len(path)-1]
-	pg, err := loadPage(ptr)
+	pg, err := LoadPage(ptr)
 	if err != nil {
-		return nil, dbNullPage
+		return nil, DbNullPage
 	}
 
 	l := 0
@@ -79,7 +79,7 @@ func find(key []byte, root *page) ([]byte, uint32) { // returns raw tuple data a
 			r = m - 1
 		}
 	}
-	return nil, dbNullPage
+	return nil, DbNullPage
 }
 
 func upperBoundIndex(pg *page, key []byte) (int, error) { // returns index of 1st cell with a key > new key, or the no. of cells if none found
@@ -132,7 +132,7 @@ func defragPage(pg *page) {
 	newOff := uint16(dbPageSize)
 	for i, c := range cells {
 		cellSize := uint16(2 + len(c.key) + len(c.value))
-		if pg.pType == leafPage {
+		if pg.pType == LeafPage {
 			cellSize += 2
 		}
 		newOff -= cellSize
@@ -141,12 +141,12 @@ func defragPage(pg *page) {
 }
 
 func insertIntoPage(pg *page, c cell, ind int) error {
-	if pg.nCells == dbMaxCellsPerPage {
+	if pg.nCells == DbMaxCellsPerPage {
 		return errors.New("page does not have enough space (soft limit), need to split")
 	}
 
 	cellSize := uint16(2 + len(c.key) + len(c.value))
-	if pg.pType == leafPage {
+	if pg.pType == LeafPage {
 		cellSize += 2
 	}
 
@@ -227,12 +227,12 @@ func interiorInsert(path []uint32, key []byte, value []byte, newChild uint32, fi
 
 	if len(path) == 0 { // creating new root
 		rootPgNo := binary.BigEndian.Uint32(value)
-		rootPg, err := loadPage(rootPgNo)
+		rootPg, err := LoadPage(rootPgNo)
 		if err != nil {
 			return err
 		}
 
-		newPg, err := createPage(rootPg.pType, firstFreePtr)
+		newPg, err := CreatePage(rootPg.pType, firstFreePtr)
 		if err != nil {
 			return err
 		}
@@ -246,15 +246,15 @@ func interiorInsert(path []uint32, key []byte, value []byte, newChild uint32, fi
 
 		copyPage(newPg, rootPg)
 		truncatePage(rootPg)
-		rootPg.pType = interiorPage
+		rootPg.pType = InteriorPage
 		rootPg.lastPtr = newChild
 		insertCell(rootPg, newCell, 0, uint16(dbPageSize-len(newCell.key)-len(newCell.value)-2))
 
-		err = saveNewPage(newPg)
+		err = SaveNewPage(newPg)
 		if err != nil {
 			return err
 		}
-		err = savePage(rootPg)
+		err = SavePage(rootPg)
 		if err != nil {
 			return err
 		}
@@ -266,7 +266,7 @@ func interiorInsert(path []uint32, key []byte, value []byte, newChild uint32, fi
 		key:   key,
 		value: value,
 	}
-	pg, err := loadPage(path[len(path)-1])
+	pg, err := LoadPage(path[len(path)-1])
 	if err != nil {
 		return err
 	}
@@ -285,13 +285,13 @@ func interiorInsert(path []uint32, key []byte, value []byte, newChild uint32, fi
 	}
 	err = insertIntoPage(pg, newCell, ind)
 	if err == nil {
-		return savePage(pg)
+		return SavePage(pg)
 	}
 
 	cells := getOverfullCellArr(pg, newCell, ind)
 	mid := len(cells) / 2
 
-	newPg, err := createPage(interiorPage, firstFreePtr)
+	newPg, err := CreatePage(InteriorPage, firstFreePtr)
 	if err != nil {
 		return err
 	}
@@ -313,11 +313,11 @@ func interiorInsert(path []uint32, key []byte, value []byte, newChild uint32, fi
 		}
 	}
 
-	err = savePage(pg)
+	err = SavePage(pg)
 	if err != nil {
 		return err
 	}
-	err = saveNewPage(newPg)
+	err = SaveNewPage(newPg)
 	if err != nil {
 		return err
 	}
@@ -332,7 +332,7 @@ func interiorInsert(path []uint32, key []byte, value []byte, newChild uint32, fi
 	return nil
 }
 
-func insert(rootPg *page, key []byte, value []byte, firstFreePtr *uint32) error {
+func BtreeInsert(rootPg *page, key []byte, value []byte, firstFreePtr *uint32) error {
 	if (len(key) + len(value) + 4) > dbMaxCellSize {
 		return errors.New("max cell size exceeded")
 	}
@@ -342,7 +342,7 @@ func insert(rootPg *page, key []byte, value []byte, firstFreePtr *uint32) error 
 		value: value,
 	}
 	path := getPath(key, rootPg)
-	pg, err := loadPage(path[len(path)-1])
+	pg, err := LoadPage(path[len(path)-1])
 	if err != nil {
 		return err
 	}
@@ -352,13 +352,13 @@ func insert(rootPg *page, key []byte, value []byte, firstFreePtr *uint32) error 
 	}
 	err = insertIntoPage(pg, newCell, ind)
 	if err == nil {
-		return savePage(pg)
+		return SavePage(pg)
 	}
 
 	cells := getOverfullCellArr(pg, newCell, ind)
 	mid := (len(cells) + 1) / 2
 
-	newPg, err := createPage(leafPage, firstFreePtr)
+	newPg, err := CreatePage(LeafPage, firstFreePtr)
 	if err != nil {
 		return err
 	}
@@ -380,11 +380,11 @@ func insert(rootPg *page, key []byte, value []byte, firstFreePtr *uint32) error 
 		}
 	}
 
-	err = savePage(pg)
+	err = SavePage(pg)
 	if err != nil {
 		return err
 	}
-	err = saveNewPage(newPg)
+	err = SaveNewPage(newPg)
 	if err != nil {
 		return err
 	}
@@ -427,7 +427,7 @@ func removeCell(pg *page, ind int) {
 	off := pg.cellPtrArr[ind]
 	c := pg.cells[off]
 	cellSize := uint16(2 + len(c.key) + len(c.value))
-	if pg.pType == leafPage {
+	if pg.pType == LeafPage {
 		cellSize += 2
 	}
 
@@ -446,10 +446,10 @@ func removeCell(pg *page, ind int) {
 	}
 }
 
-func remove(rootPg *page, key []byte, firstFreePtr *uint32) error {
+func BtreeDelete(rootPg *page, key []byte, firstFreePtr *uint32) error {
 	path := getPath(key, rootPg)
 	ptr := path[len(path)-1]
-	pg, err := loadPage(ptr)
+	pg, err := LoadPage(ptr)
 	if err != nil {
 		return err
 	}
@@ -479,7 +479,7 @@ func remove(rootPg *page, key []byte, firstFreePtr *uint32) error {
 	}
 
 	removeCell(pg, ind)
-	err = savePage(pg)
+	err = SavePage(pg)
 	if err != nil {
 		return err
 	}

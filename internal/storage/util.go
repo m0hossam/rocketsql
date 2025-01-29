@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"bufio"
@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-func compareFilesLineByLine(file1 string, file2 string) (bool, error) {
+func CompareFilesLineByLine(file1 string, file2 string) (bool, error) {
 	// Open the first file
 	f1, err := os.Open(file1)
 	if err != nil {
@@ -55,7 +55,7 @@ func writeToFile(file *os.File, format string, args ...interface{}) {
 func dumpPage(pg *page, file *os.File) {
 	writeToFile(file, "#############################\n")
 	writeToFile(file, "ID: %d\n", pg.id)
-	if pg.pType == leafPage {
+	if pg.pType == LeafPage {
 		writeToFile(file, "Type: Leaf\n")
 	} else {
 		writeToFile(file, "Type: Interior\n")
@@ -73,9 +73,9 @@ func dumpPage(pg *page, file *os.File) {
 		c := pg.cells[pg.cellPtrArr[i]]
 		writeToFile(file, "\tCell[%d]:\n", i)
 		writeToFile(file, "\t\tOffset: %d\n", pg.cellPtrArr[i])
-		writeToFile(file, "\t\tKey: %s\n", deserializeRow(c.key))
-		if pg.pType == leafPage {
-			writeToFile(file, "\t\tRow: %s\n", deserializeRow(c.value))
+		writeToFile(file, "\t\tKey: %s\n", DeserializeRow(c.key))
+		if pg.pType == LeafPage {
+			writeToFile(file, "\t\tRow: %s\n", DeserializeRow(c.value))
 		} else {
 			writeToFile(file, "\t\tPtr: %d\n", binary.BigEndian.Uint32(c.value))
 		}
@@ -83,7 +83,7 @@ func dumpPage(pg *page, file *os.File) {
 	writeToFile(file, "Rightmost Ptr: %d\n", pg.lastPtr)
 }
 
-func dumpBtree(root *page, filePath string) error { // generic BFS
+func DumpBtree(root *page, filePath string) error { // generic BFS
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
@@ -102,12 +102,12 @@ func dumpBtree(root *page, filePath string) error { // generic BFS
 			pgId := q[0]
 			q = q[1:] // dequeue
 
-			pg, err := loadPage(pgId)
+			pg, err := LoadPage(pgId)
 			if err != nil {
 				return err
 			}
 			dumpPage(pg, file)
-			if pg.pType == interiorPage {
+			if pg.pType == InteriorPage {
 				for i := 0; i < len(pg.cellPtrArr); i++ {
 					q = append(q, binary.BigEndian.Uint32(pg.cells[pg.cellPtrArr[i]].value)) // enqueue children
 				}
