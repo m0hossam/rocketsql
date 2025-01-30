@@ -29,6 +29,7 @@ go.work.sum
 
 # Temporary files used for testing
 /temp
+*.txt
 
 # Do not ignore expected results of test cases
 !test_data/*.txt

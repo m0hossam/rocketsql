@@ -252,3 +252,7 @@ func DeserializeRow(row []byte) string {
 	}
 	return strings.Trim(res, " ")
 }
+
+func deserializePtr(b []byte) uint32 {
+	return binary.BigEndian.Uint32(b)
+}

@@ -54,6 +54,19 @@ func getPath(key []byte, root *page) []uint32 { // returns page numbers from the
 	return path
 }
 
+func BtreeFirst(root *page) *Iterator {
+	for root.pType != LeafPage {
+		ptr := deserializePtr(root.cells[root.cellPtrArr[0]].value)
+		pg, err := LoadPage(ptr)
+		if err != nil {
+			return nil
+		}
+		root = pg
+	}
+	it := open(root, 0)
+	return it
+}
+
 func BtreeGet(key []byte, root *page) ([]byte, uint32) { // returns raw tuple data and the containing page number
 	path := getPath(key, root)
 	ptr := path[len(path)-1]

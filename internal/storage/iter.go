@@ -1,0 +1,34 @@
+package storage
+
+type Iterator struct {
+	p *page
+	i int
+}
+
+func open(pg *page, idx int) *Iterator {
+	it := &Iterator{
+		p: pg,
+		i: idx,
+	}
+	return it
+}
+
+func (it *Iterator) Next() (string, bool, error) { // returns row, isNotEnd, error
+	for it.i >= int(it.p.nCells) {
+		if it.p.lastPtr == DbNullPage {
+			return "", false, nil
+		}
+
+		pg, err := LoadPage(it.p.lastPtr)
+		if err != nil {
+			return "", true, err
+		}
+
+		it.p = pg
+		it.i = 0
+	}
+	b := it.p.cells[it.p.cellPtrArr[it.i]].value
+	row := DeserializeRow(b)
+	it.i++
+	return row, true, nil
+}

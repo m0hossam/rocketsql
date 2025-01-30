@@ -23,13 +23,6 @@ const ( // page types
 	LeafPage
 )
 
-const ( // database header constants
-	offsetofDbPageSize    = 0
-	offsetofDbFreePagePtr = 2
-	sizeofDbPageSize      = 2
-	sizeofDbFreePagePtr   = 4
-)
-
 const ( // page constants
 	offsetofPageType     = 0
 	offsetofFreeListOff  = 1

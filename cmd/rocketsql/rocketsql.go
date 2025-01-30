@@ -15,9 +15,9 @@ func main() {
 		return
 	}
 
-	tblName := "Instructors"
-	colNames := []string{"Name", "Dept", "Salary"}
-	colTypes := []string{"VARCHAR(255)", "VARCHAR(255)", "INT"}
+	tblName := "employees"
+	colNames := []string{"name", "salary", "dept"}
+	colTypes := []string{"VARCHAR(255)", "INT", "VARCHAR(255)"}
 
 	err = api.CreateTable(tblName, colNames, colTypes)
 	if err != nil {
@@ -25,11 +25,29 @@ func main() {
 		return
 	}
 
-	pg, err := storage.LoadPage(1)
+	err = api.InsertIntoTable(tblName, colTypes, []string{"Mohamed Hossam", "13000", "CSE"})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	err = api.InsertIntoTable(tblName, colTypes, []string{"Ahmed Nasr", "25000", "MPE"})
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	storage.DumpBtree(pg, "meta.txt")
+	pg3, err := storage.LoadPage(3)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	storage.DumpBtree(pg3, "employees.txt")
+	it := storage.BtreeFirst(pg3)
+	for row, isNotEnd, err := it.Next(); isNotEnd; row, isNotEnd, err = it.Next() {
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Println(row)
+	}
 }
