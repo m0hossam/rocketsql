@@ -41,8 +41,9 @@ func SearchTable(tblName string, primaryKey string) (string, error) {
 	}
 
 	line := storage.DeserializeRow(serRow)
-	tokens := strings.Split(line, " ")
-	primaryKeyType := tokens[3]
+	cols := strings.Split(line, "|")      // split row into 3 columns (table name, root page no., schema)
+	tokens := strings.Split(cols[2], " ") // split schema into tokens formatted like (col1 type1 col2 type2 ...)
+	primaryKeyType := tokens[1]
 	serKey = storage.SerializeRow([]string{primaryKeyType}, []string{primaryKey})
 
 	num, _ := strconv.Atoi(tokens[1])
@@ -73,7 +74,7 @@ func InsertIntoTable(tblName string, colTypes []string, colVals []string) error 
 	}
 
 	line := storage.DeserializeRow(serRow)
-	num, _ := strconv.Atoi(strings.Split(line, " ")[1])
+	num, _ := strconv.Atoi(strings.Split(line, "|")[1])
 	rootPgNo := uint32(num)
 
 	serKey = storage.SerializeRow([]string{colTypes[0]}, []string{colVals[0]})
@@ -110,7 +111,7 @@ func DeleteFromTable(tblName string, keyTypes []string, keyVals []string) error 
 	}
 
 	line := storage.DeserializeRow(serRow)
-	num, _ := strconv.Atoi(strings.Split(line, " ")[1])
+	num, _ := strconv.Atoi(strings.Split(line, "|")[1])
 	rootPgNo := uint32(num)
 
 	serKey = storage.SerializeRow(keyTypes, keyVals)

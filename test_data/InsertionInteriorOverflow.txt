@@ -67,11 +67,11 @@ No. of fragmented bytes: 0
 	Cell[0]:
 		Offset: 477
 		Key: Adams
-		Row: Adams Music 45000
+		Row: Adams|Music|45000
 	Cell[1]:
 		Offset: 435
 		Key: Brandt
-		Row: Brandt Comp. Sci. 92000
+		Row: Brandt|Comp. Sci.|92000
 Rightmost Ptr: 11
 #############################
 ID: 11
@@ -83,11 +83,11 @@ No. of fragmented bytes: 0
 	Cell[0]:
 		Offset: 467
 		Key: Califieri
-		Row: Califieri History 60000
+		Row: Califieri|History|60000
 	Cell[1]:
 		Offset: 430
 		Key: Crick
-		Row: Crick Biology 72000
+		Row: Crick|Biology|72000
 Rightmost Ptr: 4
 #############################
 ID: 4
@@ -99,11 +99,11 @@ No. of fragmented bytes: 0
 	Cell[0]:
 		Offset: 469
 		Key: Einstein
-		Row: Einstein Physics 95000
+		Row: Einstein|Physics|95000
 	Cell[1]:
 		Offset: 428
 		Key: El Said
-		Row: El Said History 80000
+		Row: El Said|History|80000
 Rightmost Ptr: 6
 #############################
 ID: 6
@@ -115,11 +115,11 @@ No. of fragmented bytes: 0
 	Cell[0]:
 		Offset: 477
 		Key: Gold
-		Row: Gold Physics 87000
+		Row: Gold|Physics|87000
 	Cell[1]:
 		Offset: 439
 		Key: Katz
-		Row: Katz Comp. Sci. 75000
+		Row: Katz|Comp. Sci.|75000
 Rightmost Ptr: 12
 #############################
 ID: 12
@@ -131,11 +131,11 @@ No. of fragmented bytes: 0
 	Cell[0]:
 		Offset: 476
 		Key: Kim
-		Row: Kim Elec. Eng. 80000
+		Row: Kim|Elec. Eng.|80000
 	Cell[1]:
 		Offset: 435
 		Key: Lamport
-		Row: Lamport History 82000
+		Row: Lamport|History|82000
 Rightmost Ptr: 7
 #############################
 ID: 7
@@ -147,11 +147,11 @@ No. of fragmented bytes: 0
 	Cell[0]:
 		Offset: 475
 		Key: Mozart
-		Row: Mozart Music 40000
+		Row: Mozart|Music|40000
 	Cell[1]:
 		Offset: 438
 		Key: Singh
-		Row: Singh Finance 80000
+		Row: Singh|Finance|80000
 Rightmost Ptr: 8
 #############################
 ID: 8
@@ -163,9 +163,9 @@ No. of fragmented bytes: 0
 	Cell[0]:
 		Offset: 462
 		Key: Srinivasan
-		Row: Srinivasan Comp. Sci. 65000
+		Row: Srinivasan|Comp. Sci.|65000
 	Cell[1]:
 		Offset: 431
 		Key: Wu
-		Row: Wu Finance 90000
+		Row: Wu|Finance|90000
 Rightmost Ptr: 0

@@ -248,7 +248,9 @@ func DeserializeRow(row []byte) string {
 			res += string(row[off : off+size])
 			off += size
 		}
-		res += " "
+		if i != int(nFields)-1 {
+			res += "|"
+		}
 	}
 	return strings.Trim(res, " ")
 }
