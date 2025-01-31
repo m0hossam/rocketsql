@@ -60,12 +60,6 @@ func SearchTable(tblName string, primaryKey string) (string, error) {
 	return storage.DeserializeRow(serRow), nil
 }
 
-/*
-func getTableSchema(tblName string) ([]string, []string) { // returns column names & types of the table
-
-}
-*/
-
 func InsertIntoTable(tblName string, colTypes []string, colVals []string) error {
 	pg1, err := storage.LoadPage(1)
 	if err != nil {

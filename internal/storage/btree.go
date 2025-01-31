@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"encoding/binary"
 	"errors"
 )
 
@@ -41,7 +40,7 @@ func getPath(key []byte, root *page) []uint32 { // returns page numbers from the
 			ptr = cur.lastPtr
 		} else {
 			c := cur.cells[cur.cellPtrArr[ind]]
-			ptr = binary.BigEndian.Uint32(c.value)
+			ptr = deserializePtr(c.value)
 		}
 
 		var err error
@@ -239,7 +238,7 @@ func interiorInsert(path []uint32, key []byte, value []byte, newChild uint32, fi
 	}
 
 	if len(path) == 0 { // creating new root
-		rootPgNo := binary.BigEndian.Uint32(value)
+		rootPgNo := deserializePtr(value)
 		rootPg, err := LoadPage(rootPgNo)
 		if err != nil {
 			return err
@@ -250,11 +249,9 @@ func interiorInsert(path []uint32, key []byte, value []byte, newChild uint32, fi
 			return err
 		}
 
-		valBuf := make([]byte, 4)
-		binary.BigEndian.PutUint32(valBuf, newPg.id)
 		newCell := cell{
 			key:   key,
-			value: valBuf, // because value will point to the root
+			value: serializePtr(newPg.id), // because value will point to the root
 		}
 
 		copyPage(newPg, rootPg)
@@ -290,10 +287,8 @@ func interiorInsert(path []uint32, key []byte, value []byte, newChild uint32, fi
 	if ind == int(pg.nCells) {
 		pg.lastPtr = newChild
 	} else {
-		buf := make([]byte, 4)
-		binary.BigEndian.PutUint32(buf, newChild)
 		c := pg.cells[pg.cellPtrArr[ind]]
-		c.value = buf
+		c.value = serializePtr(newChild)
 		pg.cells[pg.cellPtrArr[ind]] = c
 	}
 	err = insertIntoPage(pg, newCell, ind)
@@ -311,7 +306,7 @@ func interiorInsert(path []uint32, key []byte, value []byte, newChild uint32, fi
 	newPg.lastPtr = newChild
 
 	truncatePage(pg)
-	pg.lastPtr = binary.BigEndian.Uint32(cells[mid].value)
+	pg.lastPtr = deserializePtr(cells[mid].value)
 
 	for i := 0; i < mid; i++ {
 		err = insertIntoPage(pg, cells[i], i)
@@ -335,9 +330,7 @@ func interiorInsert(path []uint32, key []byte, value []byte, newChild uint32, fi
 		return err
 	}
 
-	valBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(valBuf, pg.id)
-	err = interiorInsert(path[:len(path)-1], cells[mid].key, valBuf, newPg.id, firstFreePtr)
+	err = interiorInsert(path[:len(path)-1], cells[mid].key, serializePtr(pg.id), newPg.id, firstFreePtr)
 	if err != nil {
 		return err
 	}
@@ -402,9 +395,7 @@ func BtreeInsert(rootPg *page, key []byte, value []byte, firstFreePtr *uint32) e
 		return err
 	}
 
-	valBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(valBuf, pg.id)
-	err = interiorInsert(path[:len(path)-1], newPg.cells[newPg.cellPtrArr[0]].key, valBuf, newPg.id, firstFreePtr)
+	err = interiorInsert(path[:len(path)-1], newPg.cells[newPg.cellPtrArr[0]].key, serializePtr(pg.id), newPg.id, firstFreePtr)
 	if err != nil {
 		return err
 	}
