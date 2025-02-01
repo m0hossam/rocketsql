@@ -53,12 +53,12 @@ func runDbExample() {
 		return
 	}
 
-	err = api.InsertIntoTable(tblName, colTypes, []string{"Mohamed Hossam", "13000", "CSE"})
+	err = api.InsertIntoTable(tblName, []string{"Mohamed Hossam", "13000", "CSE"})
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	err = api.InsertIntoTable(tblName, colTypes, []string{"Ahmed Nasr", "25000", "MPE"})
+	err = api.InsertIntoTable(tblName, []string{"Ahmed Nasr", "25000", "MPE"})
 	if err != nil {
 		fmt.Println(err)
 		return

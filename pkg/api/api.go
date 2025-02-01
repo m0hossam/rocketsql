@@ -28,32 +28,49 @@ func OpenDB(path string) error {
 	return nil
 }
 
-func SearchTable(tblName string, primaryKey string) (string, error) {
+func GetTableMetaData(tblName string) (uint32, []string, []string, error) { // root page no., col names, col types
 	pg1, err := storage.LoadPage(1)
 	if err != nil {
-		return "", err
+		return 0, nil, nil, err
 	}
 
 	serKey := storage.SerializeRow([]string{"VARCHAR(255)"}, []string{tblName})
 	serRow, pg := storage.BtreeGet(serKey, pg1)
 	if pg == storage.DbNullPage {
-		return "", errors.New("did not find table in master table")
+		return 0, nil, nil, errors.New("did not find table in master table")
 	}
 
 	line := storage.DeserializeRow(serRow)
-	cols := strings.Split(line, "|")      // split row into 3 columns (table name, root page no., schema)
+	cols := strings.Split(line, "|") // split row into 3 columns (table name, root page no., schema)
+	rootPageNo, _ := strconv.Atoi(cols[1])
 	tokens := strings.Split(cols[2], " ") // split schema into tokens formatted like (col1 type1 col2 type2 ...)
-	primaryKeyType := tokens[1]
-	serKey = storage.SerializeRow([]string{primaryKeyType}, []string{primaryKey})
 
-	num, _ := strconv.Atoi(tokens[1])
-	rootPgNo := uint32(num)
+	colNames := []string{}
+	colTypes := []string{}
+
+	for i := 0; i < len(tokens); i += 2 {
+		colNames = append(colNames, tokens[i])
+		colTypes = append(colTypes, tokens[i+1])
+	}
+
+	return uint32(rootPageNo), colNames, colTypes, nil
+}
+
+func GetRow(tblName string, primaryKey string) (string, error) {
+	rootPgNo, _, colTypes, err := GetTableMetaData(tblName)
+	if err != nil {
+		return "", err
+	}
+
+	primaryKeyType := colTypes[0]
+	serKey := storage.SerializeRow([]string{primaryKeyType}, []string{primaryKey})
+
 	rootPg, err := storage.LoadPage(rootPgNo)
 	if err != nil {
 		return "", err
 	}
 
-	serRow, pg = storage.BtreeGet(serKey, rootPg)
+	serRow, pg := storage.BtreeGet(serKey, rootPg)
 	if pg == storage.DbNullPage {
 		return "", errors.New("did not find key in table")
 	}
@@ -61,24 +78,14 @@ func SearchTable(tblName string, primaryKey string) (string, error) {
 	return storage.DeserializeRow(serRow), nil
 }
 
-func InsertIntoTable(tblName string, colTypes []string, colVals []string) error {
-	pg1, err := storage.LoadPage(1)
+func InsertIntoTable(tblName string, colVals []string) error {
+	rootPgNo, _, colTypes, err := GetTableMetaData(tblName)
 	if err != nil {
 		return err
 	}
 
-	serKey := storage.SerializeRow([]string{"VARCHAR(255)"}, []string{tblName})
-	serRow, pg := storage.BtreeGet(serKey, pg1)
-	if pg == storage.DbNullPage {
-		return errors.New("did not find table in master table")
-	}
-
-	line := storage.DeserializeRow(serRow)
-	num, _ := strconv.Atoi(strings.Split(line, "|")[1])
-	rootPgNo := uint32(num)
-
-	serKey = storage.SerializeRow([]string{colTypes[0]}, []string{colVals[0]})
-	serRow = storage.SerializeRow(colTypes, colVals)
+	serKey := storage.SerializeRow([]string{colTypes[0]}, []string{colVals[0]})
+	serRow := storage.SerializeRow(colTypes, colVals)
 
 	firstFreePtr, err := storage.GetFirstFreePagePtr(storage.DbFilePath)
 	if err != nil {
@@ -98,23 +105,14 @@ func InsertIntoTable(tblName string, colTypes []string, colVals []string) error 
 	return nil
 }
 
-func DeleteFromTable(tblName string, keyTypes []string, keyVals []string) error {
-	pg1, err := storage.LoadPage(1)
+func DeleteFromTable(tblName string, primaryKey string) error {
+	rootPgNo, _, colTypes, err := GetTableMetaData(tblName)
 	if err != nil {
 		return err
 	}
 
-	serKey := storage.SerializeRow([]string{"VARCHAR(255)"}, []string{tblName})
-	serRow, pg := storage.BtreeGet(serKey, pg1)
-	if pg == storage.DbNullPage {
-		return errors.New("did not find table in master table")
-	}
-
-	line := storage.DeserializeRow(serRow)
-	num, _ := strconv.Atoi(strings.Split(line, "|")[1])
-	rootPgNo := uint32(num)
-
-	serKey = storage.SerializeRow(keyTypes, keyVals)
+	primaryKeyType := colTypes[0]
+	serKey := storage.SerializeRow([]string{primaryKeyType}, []string{primaryKey})
 
 	firstFreePtr, err := storage.GetFirstFreePagePtr(storage.DbFilePath)
 	if err != nil {
