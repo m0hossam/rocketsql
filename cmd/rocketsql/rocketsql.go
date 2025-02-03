@@ -15,7 +15,7 @@ func main() {
 
 func examineMetaTableExample() {
 	fmt.Println("rocketsql> Welcome to RocketSQL...")
-	_, err := db.CreateDb("db")
+	db, err := db.CreateDb("db")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -28,17 +28,17 @@ func examineMetaTableExample() {
 		fmt.Println(err)
 		return
 	}
-	pg, err := storage.LoadPage(1)
+	pg, err := db.Pgr.LoadPage(1)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	storage.DumpBtree(pg, "meta.txt")
+	storage.DumpBtree(db.Btree, pg, "meta.txt")
 }
 
 func runDbExample() {
 	fmt.Println("rocketsql> Welcome to RocketSQL...")
-	_, err := db.CreateDb("db")
+	db, err := db.CreateDb("db")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -65,13 +65,13 @@ func runDbExample() {
 		return
 	}
 
-	pg3, err := storage.LoadPage(3)
+	pg3, err := db.Pgr.LoadPage(3)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	storage.DumpBtree(pg3, "employees.txt")
-	it := storage.BtreeFirst(pg3)
+	storage.DumpBtree(db.Btree, pg3, "employees.txt")
+	it := db.Btree.BtreeFirst(pg3)
 	for row, isNotEnd, err := it.Next(); isNotEnd; row, isNotEnd, err = it.Next() {
 		if err != nil {
 			fmt.Println(err)

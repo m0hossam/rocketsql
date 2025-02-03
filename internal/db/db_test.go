@@ -11,7 +11,10 @@ const (
 )
 
 func TestInsertion(t *testing.T) { // Database System Concepts 7th Edition, Pages 636-642-643, Figures 14.9-14.14-14.15
-	CreateDb(srcDirPath + "db")
+	db, err := CreateDb(srcDirPath + "db")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	storage.DbMaxCellsPerPage = 3 // Essential for this test case
 
@@ -37,25 +40,25 @@ func TestInsertion(t *testing.T) { // Database System Concepts 7th Edition, Page
 		"test_data/InsertionLeafOverflow.txt",
 		"test_data/InsertionInteriorOverflow.txt"}
 
-	err := CreateTable(tblName, colNames, colTypes)
+	err = db.CreateTable(tblName, colNames, colTypes)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for _, colVals := range oldColVals {
-		err = InsertIntoTable(tblName, colVals)
+		err = db.InsertIntoTable(tblName, colVals)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	for idx, colVals := range newColVals {
-		err = InsertIntoTable(tblName, colVals)
+		err = db.InsertIntoTable(tblName, colVals)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		rootPg, err := storage.LoadPage(3)
+		rootPg, err := db.Pgr.LoadPage(3)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -63,7 +66,7 @@ func TestInsertion(t *testing.T) { // Database System Concepts 7th Edition, Page
 		expected := srcDirPath + expectedFiles[idx]
 		actual := srcDirPath + "temp/output.txt"
 
-		err = storage.DumpBtree(rootPg, actual)
+		err = storage.DumpBtree(db.Btree, rootPg, actual)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -77,10 +80,18 @@ func TestInsertion(t *testing.T) { // Database System Concepts 7th Edition, Page
 			t.Fatalf("Deletion failed: actual output (%s) is different from expected output (%s)", actual, expected)
 		}
 	}
+
+	hits := db.Pgr.GetPagerHits()
+	misses := db.Pgr.GetPagerMisses()
+	hitRatio := float32(hits) / float32(hits+misses) * 100.0
+	t.Log("Cache hits: ", hits, " | Cache misses: ", misses, " | Cache hit rate: ", hitRatio, "%")
 }
 
 func TestDeletion(t *testing.T) {
-	CreateDb(srcDirPath + "db")
+	db, err := CreateDb(srcDirPath + "db")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	storage.DbMaxCellsPerPage = 3 // Essential for this test case
 
@@ -100,13 +111,13 @@ func TestDeletion(t *testing.T) {
 		{"Crick", "Biology", "72000"},
 		{"Kim", "Comp. Sci.", "75000"}}
 
-	err := CreateTable(tblName, colNames, colTypes)
+	err = db.CreateTable(tblName, colNames, colTypes)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for _, colVals := range oldColVals {
-		err = InsertIntoTable(tblName, colVals)
+		err = db.InsertIntoTable(tblName, colVals)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -115,43 +126,43 @@ func TestDeletion(t *testing.T) {
 	expected := srcDirPath + "temp/initial.txt"
 	actual := srcDirPath + "temp/final.txt"
 
-	rootPg, err := storage.LoadPage(3)
+	rootPg, err := db.Pgr.LoadPage(3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = storage.DumpBtree(rootPg, expected)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	for _, colVals := range oldColVals {
-		err = DeleteFromTable(tblName, colVals[0])
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	rootPg, err = storage.LoadPage(3)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = storage.DumpBtree(rootPg, srcDirPath+"temp/middle.txt")
+	err = storage.DumpBtree(db.Btree, rootPg, expected)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for _, colVals := range oldColVals {
-		err = InsertIntoTable(tblName, colVals)
+		err = db.DeleteFromTable(tblName, colVals[0])
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	rootPg, err = storage.LoadPage(3)
+	rootPg, err = db.Pgr.LoadPage(3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = storage.DumpBtree(rootPg, actual)
+	err = storage.DumpBtree(db.Btree, rootPg, srcDirPath+"temp/middle.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, colVals := range oldColVals {
+		err = db.InsertIntoTable(tblName, colVals)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rootPg, err = db.Pgr.LoadPage(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = storage.DumpBtree(db.Btree, rootPg, actual)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,4 +174,9 @@ func TestDeletion(t *testing.T) {
 	if !eq {
 		t.Fatalf("Deletion failed: actual output (%s) is different from expected output (%s)", actual, expected)
 	}
+
+	hits := db.Pgr.GetPagerHits()
+	misses := db.Pgr.GetPagerMisses()
+	hitRatio := float32(hits) / float32(hits+misses) * 100.0
+	t.Log("Cache hits: ", hits, " | Cache misses: ", misses, " | Cache hit rate: ", hitRatio, "%")
 }

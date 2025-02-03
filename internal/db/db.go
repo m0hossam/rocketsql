@@ -9,8 +9,9 @@ import (
 )
 
 type Db struct {
-	path string
-	pgr  *storage.Pager
+	Path  string
+	Btree *storage.Btree
+	Pgr   *storage.Pager
 }
 
 func CreateDb(name string) (*Db, error) {
@@ -25,17 +26,19 @@ func CreateDb(name string) (*Db, error) {
 // TODO: OpenDb()
 
 func (db *Db) initDb(name string) error {
-	db.path = name + ".rocketsql"
-	err := storage.CreateDb(db.path)
+	db.Path = name + ".rocketsql"
+	db.Pgr = storage.CreatePager(db.Path, 50)
+	db.Btree = storage.CreateBtree(db.Pgr)
+
+	err := storage.CreateDb(db.Path, db.Btree)
 	if err != nil {
 		return err
 	}
 
-	db.pgr = storage.CreatePager(db.path, 5)
 	return nil
 }
 
-func CreateTable(tblName string, colNames []string, colTypes []string) error {
+func (db *Db) CreateTable(tblName string, colNames []string, colTypes []string) error {
 	rootPageNo, err := storage.GetFirstFreePagePtr(storage.DbFilePath)
 	if err != nil {
 		return err
@@ -55,17 +58,17 @@ func CreateTable(tblName string, colNames []string, colTypes []string) error {
 	if err != nil {
 		return err
 	}
-	err = storage.SaveNewPage(tblRootPg)
+	err = db.Pgr.SaveNewPage(tblRootPg)
 	if err != nil {
 		return err
 	}
 
-	pg1, err := storage.LoadPage(1)
+	pg1, err := db.Pgr.LoadPage(1)
 	if err != nil {
 		return err
 	}
 
-	err = storage.BtreeInsert(pg1, serKey, serRow, rootPageNo)
+	err = db.Btree.BtreeInsert(pg1, serKey, serRow, rootPageNo)
 	if err != nil {
 		return err
 	}
@@ -73,14 +76,14 @@ func CreateTable(tblName string, colNames []string, colTypes []string) error {
 	return nil
 }
 
-func GetTableMetaData(tblName string) (uint32, []string, []string, error) { // root page no., col names, col types
-	pg1, err := storage.LoadPage(1)
+func (db *Db) GetTableMetaData(tblName string) (uint32, []string, []string, error) { // root page no., col names, col types
+	pg1, err := db.Pgr.LoadPage(1)
 	if err != nil {
 		return 0, nil, nil, err
 	}
 
 	serKey := storage.SerializeRow([]string{"VARCHAR(255)"}, []string{tblName})
-	serRow, pg := storage.BtreeGet(serKey, pg1)
+	serRow, pg := db.Btree.BtreeGet(serKey, pg1)
 	if pg == storage.DbNullPage {
 		return 0, nil, nil, errors.New("did not find table in master table")
 	}
@@ -101,8 +104,8 @@ func GetTableMetaData(tblName string) (uint32, []string, []string, error) { // r
 	return uint32(rootPageNo), colNames, colTypes, nil
 }
 
-func GetRow(tblName string, primaryKey string) (string, error) {
-	rootPgNo, _, colTypes, err := GetTableMetaData(tblName)
+func (db *Db) GetRow(tblName string, primaryKey string) (string, error) {
+	rootPgNo, _, colTypes, err := db.GetTableMetaData(tblName)
 	if err != nil {
 		return "", err
 	}
@@ -110,12 +113,12 @@ func GetRow(tblName string, primaryKey string) (string, error) {
 	primaryKeyType := colTypes[0]
 	serKey := storage.SerializeRow([]string{primaryKeyType}, []string{primaryKey})
 
-	rootPg, err := storage.LoadPage(rootPgNo)
+	rootPg, err := db.Pgr.LoadPage(rootPgNo)
 	if err != nil {
 		return "", err
 	}
 
-	serRow, pg := storage.BtreeGet(serKey, rootPg)
+	serRow, pg := db.Btree.BtreeGet(serKey, rootPg)
 	if pg == storage.DbNullPage {
 		return "", errors.New("did not find key in table")
 	}
@@ -123,8 +126,8 @@ func GetRow(tblName string, primaryKey string) (string, error) {
 	return storage.DeserializeRow(serRow), nil
 }
 
-func InsertIntoTable(tblName string, colVals []string) error {
-	rootPgNo, _, colTypes, err := GetTableMetaData(tblName)
+func (db *Db) InsertIntoTable(tblName string, colVals []string) error {
+	rootPgNo, _, colTypes, err := db.GetTableMetaData(tblName)
 	if err != nil {
 		return err
 	}
@@ -137,12 +140,12 @@ func InsertIntoTable(tblName string, colVals []string) error {
 		return err
 	}
 
-	rootPg, err := storage.LoadPage(rootPgNo)
+	rootPg, err := db.Pgr.LoadPage(rootPgNo)
 	if err != nil {
 		return err
 	}
 
-	err = storage.BtreeInsert(rootPg, serKey, serRow, firstFreePtr)
+	err = db.Btree.BtreeInsert(rootPg, serKey, serRow, firstFreePtr)
 	if err != nil {
 		return err
 	}
@@ -150,8 +153,8 @@ func InsertIntoTable(tblName string, colVals []string) error {
 	return nil
 }
 
-func DeleteFromTable(tblName string, primaryKey string) error {
-	rootPgNo, _, colTypes, err := GetTableMetaData(tblName)
+func (db *Db) DeleteFromTable(tblName string, primaryKey string) error {
+	rootPgNo, _, colTypes, err := db.GetTableMetaData(tblName)
 	if err != nil {
 		return err
 	}
@@ -164,12 +167,12 @@ func DeleteFromTable(tblName string, primaryKey string) error {
 		return err
 	}
 
-	rootPg, err := storage.LoadPage(rootPgNo)
+	rootPg, err := db.Pgr.LoadPage(rootPgNo)
 	if err != nil {
 		return err
 	}
 
-	err = storage.BtreeDelete(rootPg, serKey, firstFreePtr)
+	err = db.Btree.BtreeDelete(rootPg, serKey, firstFreePtr)
 	if err != nil {
 		return err
 	}

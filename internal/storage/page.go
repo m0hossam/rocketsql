@@ -1,10 +1,5 @@
 package storage
 
-import (
-	"errors"
-	"sync/atomic"
-)
-
 var (
 	DbMaxCellsPerPage uint16 = 3 // for testing purposes
 )
@@ -74,24 +69,6 @@ type page struct {
 	lastPtr    uint32
 	cellPtrArr []uint16
 	cells      map[uint16]cell
-}
-
-func CreatePage(pType uint8, firstFreePtr *uint32) (*page, error) {
-	if pType != InteriorPage && pType != LeafPage { // invalid type
-		return nil, errors.New("invalid page type")
-	}
-	p := &page{
-		id:         *firstFreePtr,
-		pType:      pType,
-		nCells:     0,
-		cellArrOff: dbPageSize,
-		nFragBytes: 0,
-		lastPtr:    DbNullPage,
-		cellPtrArr: []uint16{},
-		cells:      map[uint16]cell{},
-	}
-	atomic.AddUint32(firstFreePtr, 1)
-	return p, nil
 }
 
 func truncatePage(p *page) {

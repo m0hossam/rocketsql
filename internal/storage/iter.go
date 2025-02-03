@@ -1,14 +1,16 @@
 package storage
 
 type Iterator struct {
-	p *page
-	i int
+	pgr *Pager
+	p   *page
+	i   int
 }
 
-func createIterator(pg *page, idx int) *Iterator {
+func createIterator(pgr *Pager, pg *page, idx int) *Iterator {
 	it := &Iterator{
-		p: pg,
-		i: idx,
+		pgr: pgr,
+		p:   pg,
+		i:   idx,
 	}
 	return it
 }
@@ -19,7 +21,7 @@ func (it *Iterator) Next() (string, bool, error) { // returns row, isNotEnd
 			return "", false, nil
 		}
 
-		pg, err := LoadPage(it.p.lastPtr)
+		pg, err := it.pgr.LoadPage(it.p.lastPtr)
 		if err != nil {
 			return "", true, err
 		}

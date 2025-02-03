@@ -83,7 +83,7 @@ func dumpPage(pg *page, file *os.File) {
 	writeToFile(file, "Rightmost Ptr: %d\n", pg.lastPtr)
 }
 
-func DumpBtree(root *page, filePath string) error { // generic BFS
+func DumpBtree(btree *Btree, root *page, filePath string) error { // generic BFS
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println("Error opening file:", err)
@@ -102,7 +102,7 @@ func DumpBtree(root *page, filePath string) error { // generic BFS
 			pgId := q[0]
 			q = q[1:] // dequeue
 
-			pg, err := LoadPage(pgId)
+			pg, err := btree.pgr.LoadPage(pgId)
 			if err != nil {
 				return err
 			}

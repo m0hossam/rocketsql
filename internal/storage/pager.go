@@ -3,6 +3,7 @@ package storage
 import (
 	"errors"
 	"strconv"
+	"sync/atomic"
 )
 
 var (
@@ -19,9 +20,16 @@ type Pager struct {
 }
 
 type frame struct {
-	pg      *page
-	pins    int
-	isDirty bool
+	pg   *page
+	pins int
+}
+
+func (pgr *Pager) GetPagerHits() int {
+	return pgr.nHits
+}
+
+func (pgr *Pager) GetPagerMisses() int {
+	return pgr.nMisses
 }
 
 func CreatePager(dbFilePath string, maxFrames int) *Pager {
@@ -36,7 +44,7 @@ func CreatePager(dbFilePath string, maxFrames int) *Pager {
 	}
 }
 
-func CreateDb(path string) error {
+func CreateDb(path string, btree *Btree) error {
 	err := createFile(path)
 	if err != nil {
 		return err
@@ -55,12 +63,12 @@ func CreateDb(path string) error {
 		return err
 	}
 
-	err = SaveNewPage(pg1)
+	err = btree.pgr.SaveNewPage(pg1)
 	if err != nil {
 		return err
 	}
 
-	err = SaveNewPage(pg2)
+	err = btree.pgr.SaveNewPage(pg2)
 	if err != nil {
 		return err
 	}
@@ -69,7 +77,7 @@ func CreateDb(path string) error {
 	serKey := SerializeRow([]string{"VARCHAR(255)"}, []string{"first_free_page"})
 	serRow := SerializeRow([]string{"VARCHAR(255)", "INT"}, []string{"first_free_page", strconv.Itoa(0)})
 
-	err = BtreeInsert(pg2, serKey, serRow, &firstFreePtr)
+	err = btree.BtreeInsert(pg2, serKey, serRow, &firstFreePtr)
 	if err != nil {
 		return err
 	}
@@ -86,24 +94,80 @@ func OpenDb(path string) error {
 	return nil
 }
 
-func LoadPage(ptr uint32) (*page, error) {
+func CreatePage(pType uint8, firstFreePtr *uint32) (*page, error) {
+	if pType != InteriorPage && pType != LeafPage { // invalid type
+		return nil, errors.New("invalid page type")
+	}
+	p := &page{
+		id:         *firstFreePtr,
+		pType:      pType,
+		nCells:     0,
+		cellArrOff: dbPageSize,
+		nFragBytes: 0,
+		lastPtr:    DbNullPage,
+		cellPtrArr: []uint16{},
+		cells:      map[uint16]cell{},
+	}
+	atomic.AddUint32(firstFreePtr, 1)
+	return p, nil
+}
+
+func (pgr *Pager) LoadPage(ptr uint32) (*page, error) {
+	// pages are numbered starting from 1, 0 is reserved for null pages
 	if ptr == 0 {
 		return nil, errors.New("page numbers start from 1")
 	}
+
+	// try to get page from cache
+	frm, hit := pgr.cache[ptr]
+	if hit {
+		frm.pins++
+		pgr.nHits++
+		return frm.pg, nil
+	}
+
+	// cache miss
+	pgr.nMisses++
+
+	// load page from disk
 	b, err := loadPageFromDisk(DbFilePath, ptr)
 	if err != nil {
 		return nil, err
 	}
 	p := deserializePage(ptr, b)
+
+	// try to put page into cache
+	if pgr.nFrames < pgr.maxFrames {
+		pgr.cache[ptr] = &frame{
+			pg:   p,
+			pins: 1,
+		}
+	}
+
 	return p, nil
 }
 
-func SavePage(p *page) error {
+func (pgr *Pager) SaveNewPage(p *page) error {
 	b := serializePage(p)
-	return savePageToDisk(DbFilePath, b, p.id)
+	err := saveNewPageToDisk(DbFilePath, b)
+	if err != nil {
+		pgr.cache[p.id] = &frame{
+			pg:   p,
+			pins: 0,
+		}
+	}
+	return err
 }
 
-func SaveNewPage(p *page) error {
+func (pgr *Pager) SavePage(p *page) error {
 	b := serializePage(p)
-	return saveNewPageToDisk(DbFilePath, b)
+
+	err := savePageToDisk(DbFilePath, b, p.id)
+	if err != nil {
+		frm, hit := pgr.cache[p.id]
+		if hit {
+			frm.pins--
+		}
+	}
+	return err
 }
