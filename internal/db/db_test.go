@@ -1,4 +1,4 @@
-package api
+package db
 
 import (
 	"testing"
@@ -11,10 +11,7 @@ const (
 )
 
 func TestInsertion(t *testing.T) { // Database System Concepts 7th Edition, Pages 636-642-643, Figures 14.9-14.14-14.15
-	err := CreateDB(srcDirPath + "./db.rocketsql")
-	if err != nil {
-		t.Fatal(err)
-	}
+	CreateDb(srcDirPath + "db")
 
 	storage.DbMaxCellsPerPage = 3 // Essential for this test case
 
@@ -40,7 +37,7 @@ func TestInsertion(t *testing.T) { // Database System Concepts 7th Edition, Page
 		"test_data/InsertionLeafOverflow.txt",
 		"test_data/InsertionInteriorOverflow.txt"}
 
-	err = CreateTable(tblName, colNames, colTypes)
+	err := CreateTable(tblName, colNames, colTypes)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,10 +80,7 @@ func TestInsertion(t *testing.T) { // Database System Concepts 7th Edition, Page
 }
 
 func TestDeletion(t *testing.T) {
-	err := CreateDB(srcDirPath + "./db.rocketsql")
-	if err != nil {
-		t.Fatal(err)
-	}
+	CreateDb(srcDirPath + "db")
 
 	storage.DbMaxCellsPerPage = 3 // Essential for this test case
 
@@ -106,7 +100,7 @@ func TestDeletion(t *testing.T) {
 		{"Crick", "Biology", "72000"},
 		{"Kim", "Comp. Sci.", "75000"}}
 
-	err = CreateTable(tblName, colNames, colTypes)
+	err := CreateTable(tblName, colNames, colTypes)
 	if err != nil {
 		t.Fatal(err)
 	}

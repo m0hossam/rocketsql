@@ -9,7 +9,34 @@ var (
 	DbFilePath string = "db.rocketsql" // default value
 )
 
-func CreateDB(path string) error {
+type Pager struct {
+	dbFilePath string
+	cache      map[uint32]*frame
+	maxFrames  int
+	nFrames    int
+	nHits      int
+	nMisses    int
+}
+
+type frame struct {
+	pg      *page
+	pins    int
+	isDirty bool
+}
+
+func CreatePager(dbFilePath string, maxFrames int) *Pager {
+	maxFrames = min(maxFrames, 5) // TODO: change to 2000?
+	return &Pager{
+		dbFilePath: dbFilePath,
+		cache:      make(map[uint32]*frame, maxFrames),
+		maxFrames:  maxFrames,
+		nFrames:    0,
+		nHits:      0,
+		nMisses:    0,
+	}
+}
+
+func CreateDb(path string) error {
 	err := createFile(path)
 	if err != nil {
 		return err
@@ -50,7 +77,7 @@ func CreateDB(path string) error {
 	return nil
 }
 
-func OpenDB(path string) error {
+func OpenDb(path string) error {
 	err := openFile(path)
 	if err != nil {
 		return err

@@ -5,7 +5,7 @@ type Iterator struct {
 	i int
 }
 
-func open(pg *page, idx int) *Iterator {
+func createIterator(pg *page, idx int) *Iterator {
 	it := &Iterator{
 		p: pg,
 		i: idx,
@@ -13,7 +13,7 @@ func open(pg *page, idx int) *Iterator {
 	return it
 }
 
-func (it *Iterator) Next() (string, bool, error) { // returns row, isNotEnd, error
+func (it *Iterator) Next() (string, bool, error) { // returns row, isNotEnd
 	for it.i >= int(it.p.nCells) {
 		if it.p.lastPtr == DbNullPage {
 			return "", false, nil

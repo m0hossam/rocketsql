@@ -3,18 +3,19 @@ package main
 import (
 	"fmt"
 
+	"github.com/m0hossam/rocketsql/internal/db"
 	"github.com/m0hossam/rocketsql/internal/storage"
-	"github.com/m0hossam/rocketsql/pkg/api"
 )
 
 func main() {
+	fmt.Println("rocketsql> Welcome to RocketSQL!")
 	examineMetaTableExample()
 	runDbExample()
 }
 
 func examineMetaTableExample() {
 	fmt.Println("rocketsql> Welcome to RocketSQL...")
-	err := api.CreateDB("db.rocketsql")
+	_, err := db.CreateDb("db")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -22,7 +23,7 @@ func examineMetaTableExample() {
 	tblName := "Instructors"
 	colNames := []string{"Name", "Dept", "Salary"}
 	colTypes := []string{"VARCHAR(255)", "VARCHAR(255)", "INT"}
-	err = api.CreateTable(tblName, colNames, colTypes)
+	err = db.CreateTable(tblName, colNames, colTypes)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -37,7 +38,7 @@ func examineMetaTableExample() {
 
 func runDbExample() {
 	fmt.Println("rocketsql> Welcome to RocketSQL...")
-	err := api.CreateDB("db.rocketsql")
+	_, err := db.CreateDb("db")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -47,18 +48,18 @@ func runDbExample() {
 	colNames := []string{"name", "salary", "dept"}
 	colTypes := []string{"VARCHAR(255)", "INT", "VARCHAR(255)"}
 
-	err = api.CreateTable(tblName, colNames, colTypes)
+	err = db.CreateTable(tblName, colNames, colTypes)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	err = api.InsertIntoTable(tblName, []string{"Mohamed Hossam", "13000", "CSE"})
+	err = db.InsertIntoTable(tblName, []string{"Mohamed Hossam", "13000", "CSE"})
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	err = api.InsertIntoTable(tblName, []string{"Ahmed Nasr", "25000", "MPE"})
+	err = db.InsertIntoTable(tblName, []string{"Ahmed Nasr", "25000", "MPE"})
 	if err != nil {
 		fmt.Println(err)
 		return

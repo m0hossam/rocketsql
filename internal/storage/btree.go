@@ -62,7 +62,7 @@ func BtreeFirst(root *page) *Iterator {
 		}
 		root = pg
 	}
-	it := open(root, 0)
+	it := createIterator(root, 0)
 	return it
 }
 

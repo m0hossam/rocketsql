@@ -108,29 +108,6 @@ func deserializePage(ptr uint32, b []byte) *page {
 	return p
 }
 
-func getDatatype(s string) int {
-	s = strings.ToUpper(s)
-	switch s {
-	case "NULL":
-		return sqlNull
-	case "SMALLINT":
-		return sqlSmallint
-	case "INT":
-		return sqlInt
-	case "BIGINT":
-		return sqlBigint
-	case "FLOAT":
-		return sqlFloat
-	case "DOUBLE":
-		return sqlDouble
-	default:
-		if s[:4] == "CHAR" {
-			return sqlChar
-		}
-		return sqlVarchar
-	}
-}
-
 func SerializeRow(colTypes []string, colVals []string) []byte {
 	b := []byte{}
 	nFields := len(colTypes)

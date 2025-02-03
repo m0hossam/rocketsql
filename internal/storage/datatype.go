@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/binary"
 	"math"
+	"strings"
 )
 
 const (
@@ -21,6 +22,29 @@ const (
 	firstEqualSecond       = 0
 	firstGreaterThanSecond = 1
 )
+
+func getDatatype(s string) int {
+	s = strings.ToUpper(s)
+	switch s {
+	case "NULL":
+		return sqlNull
+	case "SMALLINT":
+		return sqlSmallint
+	case "INT":
+		return sqlInt
+	case "BIGINT":
+		return sqlBigint
+	case "FLOAT":
+		return sqlFloat
+	case "DOUBLE":
+		return sqlDouble
+	default:
+		if s[:4] == "CHAR" {
+			return sqlChar
+		}
+		return sqlVarchar
+	}
+}
 
 func intCompare(a []byte, b []byte, datatype uint8) int {
 	var ax, bx int64
