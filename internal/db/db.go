@@ -27,7 +27,7 @@ func CreateDb(name string) (*Db, error) {
 
 func (db *Db) initDb(name string) error {
 	db.Path = name + ".rocketsql"
-	db.Pgr = storage.CreatePager(db.Path, 50)
+	db.Pgr = storage.CreatePager(db.Path, 5) // TODO: adjust max frames here
 	db.Btree = storage.CreateBtree(db.Pgr)
 
 	err := storage.CreateDb(db.Path, db.Btree)

@@ -33,7 +33,7 @@ func (pgr *Pager) GetPagerMisses() int {
 }
 
 func CreatePager(dbFilePath string, maxFrames int) *Pager {
-	maxFrames = min(maxFrames, 5) // TODO: change to 2000?
+	maxFrames = min(maxFrames, 2000) // TODO: put value in a const instead of hardcoding it
 	return &Pager{
 		dbFilePath: dbFilePath,
 		cache:      make(map[uint32]*frame, maxFrames),
@@ -138,6 +138,7 @@ func (pgr *Pager) LoadPage(ptr uint32) (*page, error) {
 
 	// try to put page into cache
 	if pgr.nFrames < pgr.maxFrames {
+		pgr.nFrames++
 		pgr.cache[ptr] = &frame{
 			pg:   p,
 			pins: 1,
@@ -150,10 +151,13 @@ func (pgr *Pager) LoadPage(ptr uint32) (*page, error) {
 func (pgr *Pager) SaveNewPage(p *page) error {
 	b := serializePage(p)
 	err := saveNewPageToDisk(DbFilePath, b)
-	if err != nil {
-		pgr.cache[p.id] = &frame{
-			pg:   p,
-			pins: 0,
+	if err == nil {
+		if pgr.nFrames < pgr.maxFrames {
+			pgr.nFrames++
+			pgr.cache[p.id] = &frame{
+				pg:   p,
+				pins: 0,
+			}
 		}
 	}
 	return err
