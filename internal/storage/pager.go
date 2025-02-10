@@ -11,12 +11,14 @@ var (
 )
 
 type Pager struct {
-	dbFilePath string
-	cache      map[uint32]*frame
-	maxFrames  int
-	nFrames    int
-	nHits      int
-	nMisses    int
+	dbFilePath      string
+	journalFilePath string
+	cache           map[uint32]*frame
+	journal         *journal
+	maxFrames       int
+	nFrames         int
+	nHits           int
+	nMisses         int
 }
 
 type frame struct {
@@ -32,19 +34,45 @@ func (pgr *Pager) GetPagerMisses() int {
 	return pgr.nMisses
 }
 
-func CreatePager(dbFilePath string, maxFrames int) *Pager {
+func CreatePager(dbName string, maxFrames int) *Pager {
 	maxFrames = min(maxFrames, 2000) // TODO: put value in a const instead of hardcoding it
-	return &Pager{
-		dbFilePath: dbFilePath,
-		cache:      make(map[uint32]*frame, maxFrames),
-		maxFrames:  maxFrames,
-		nFrames:    0,
-		nHits:      0,
-		nMisses:    0,
+	pgr := &Pager{
+		dbFilePath:      dbName + ".rocketsql",
+		journalFilePath: dbName + "-journal.rocketsql",
+		cache:           make(map[uint32]*frame, maxFrames),
+		maxFrames:       maxFrames,
+		nFrames:         0,
+		nHits:           0,
+		nMisses:         0,
 	}
+
+	pgr.journal = loadJournal(pgr.journalFilePath)
+	if pgr.journal != nil { // hot journal, recover
+		dbNumPages, err := getDbNumPages(pgr.dbFilePath)
+		if err != nil {
+			return nil // empty pager object
+		}
+
+		if dbNumPages > pgr.journal.dbInitNumPages { // delete extra corrupted pages
+			err = truncateFile(pgr.dbFilePath, int(dbNumPages-pgr.journal.dbInitNumPages))
+			if err != nil {
+				return nil // empty pager object
+			}
+		}
+
+		for _, p := range pgr.journal.pages { // rewrite old pages to disk (undo)
+			err := pgr.SavePage(p)
+			if err != nil {
+				return nil // empty pager object
+			}
+		}
+	}
+
+	return pgr
 }
 
-func CreateDb(path string, btree *Btree) error {
+func CreateDb(name string, btree *Btree) error {
+	path := name + ".rocketsql"
 	err := createFile(path)
 	if err != nil {
 		return err

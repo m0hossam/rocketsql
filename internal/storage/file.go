@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"syscall"
 )
 
 // TODO: Research fsync and I/O race
@@ -84,12 +85,61 @@ func loadPageFromDisk(path string, ptr uint32) ([]byte, error) {
 	return b, err
 }
 
-func GetFirstFreePagePtr(path string) (*uint32, error) {
+func loadJournalFromDisk(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+func flushFile(path string, b []byte) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_SYNC, os.ModeExclusive) // O_SYNC guarantees flushing?
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.Write(b)
+	if err != nil {
+		return err
+	}
+
+	handle := syscall.Handle(file.Fd())
+	return syscall.FlushFileBuffers(handle) // using this instead of fsync to guarantee flushing?
+}
+
+func deleteFile(path string) error {
+	return os.Remove(path)
+}
+
+func truncateFile(path string, extraPages int) error {
 	fi, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	extraSize := extraPages * dbPageSize
+
+	newSize := fi.Size() - int64(extraSize)
+	if newSize < 0 {
+		newSize = 0 // Prevent negative file sizes
+	}
+
+	// Truncate the file to the new size
+	return os.Truncate(path, newSize)
+}
+
+func getDbNumPages(path string) (uint32, error) {
+	fi, err := os.Stat(path)
+	if err != nil {
+		return DbNullPage, err
+	}
+
+	return uint32(fi.Size() / dbPageSize), nil
+}
+
+func GetFirstFreePagePtr(path string) (*uint32, error) {
+	dbNumPages, err := getDbNumPages(path)
 	if err != nil {
 		return nil, err
 	}
-
-	var firstFreePgPtr uint32 = uint32(fi.Size()/dbPageSize + 1)
+	var firstFreePgPtr uint32 = uint32(dbNumPages + 1)
 	return &firstFreePgPtr, nil
 }

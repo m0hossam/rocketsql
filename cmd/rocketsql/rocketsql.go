@@ -8,7 +8,6 @@ import (
 )
 
 func main() {
-	fmt.Println("rocketsql> Welcome to RocketSQL!")
 	examineMetaTableExample()
 	runDbExample()
 }
@@ -34,6 +33,7 @@ func examineMetaTableExample() {
 		return
 	}
 	storage.DumpBtree(db.Btree, pg, "meta.txt")
+	fmt.Println("rocketsql> Bye!")
 }
 
 func runDbExample() {
@@ -79,4 +79,5 @@ func runDbExample() {
 		}
 		fmt.Println(row)
 	}
+	fmt.Println("rocketsql> Bye!")
 }

@@ -9,7 +9,7 @@ import (
 )
 
 type Db struct {
-	Path  string
+	Name  string
 	Btree *storage.Btree
 	Pgr   *storage.Pager
 }
@@ -26,11 +26,14 @@ func CreateDb(name string) (*Db, error) {
 // TODO: OpenDb()
 
 func (db *Db) initDb(name string) error {
-	db.Path = name + ".rocketsql"
-	db.Pgr = storage.CreatePager(db.Path, 5) // TODO: adjust max frames here
+	db.Name = name
+	db.Pgr = storage.CreatePager(db.Name, 5) // TODO: adjust max frames here
+	if db.Pgr == nil {
+		return errors.New("failed to create pager")
+	}
 	db.Btree = storage.CreateBtree(db.Pgr)
 
-	err := storage.CreateDb(db.Path, db.Btree)
+	err := storage.CreateDb(db.Name, db.Btree)
 	if err != nil {
 		return err
 	}

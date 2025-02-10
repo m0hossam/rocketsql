@@ -241,3 +241,31 @@ func serializePtr(ptr uint32) []byte {
 func deserializePtr(b []byte) uint32 {
 	return binary.BigEndian.Uint32(b)
 }
+
+func serializeJournal(j *journal) []byte {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, j.nPages)
+	binary.Write(buf, binary.BigEndian, j.pageSize)
+	binary.Write(buf, binary.BigEndian, j.dbInitNumPages)
+	for _, p := range j.pages {
+		binary.Write(buf, binary.BigEndian, p.id)
+		binary.Write(buf, binary.BigEndian, serializePage(p))
+	}
+	return buf.Bytes()
+}
+
+func deserializeJournal(b []byte) *journal {
+	j := &journal{}
+	j.nPages = binary.BigEndian.Uint32(b[offsetofNumPages : offsetofNumPages+sizeofJournalConst])
+	j.pageSize = binary.BigEndian.Uint32(b[offsetofPageSize : offsetofPageSize+sizeofJournalConst])
+	j.dbInitNumPages = binary.BigEndian.Uint32(b[offsetofDbInitialNumPages : offsetofDbInitialNumPages+sizeofJournalConst])
+	j.pages = []*page{}
+
+	segSize := int(j.pageSize + sizeofJournalConst)
+	for i := 0; i < int(j.nPages); i++ {
+		id := binary.BigEndian.Uint32(b[offsetofJournalPages+i*segSize : offsetofJournalPages+i*segSize+sizeofJournalConst])
+		p := deserializePage(id, b[offsetofJournalPages+i*segSize+sizeofJournalConst:offsetofJournalPages+(i+1)*segSize])
+		j.pages = append(j.pages, p)
+	}
+	return j
+}
