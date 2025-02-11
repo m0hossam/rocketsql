@@ -79,7 +79,8 @@ func (db *Db) CreateTable(tblName string, colNames []string, colTypes []string) 
 	return nil
 }
 
-func (db *Db) GetTableMetaData(tblName string) (uint32, []string, []string, error) { // root page no., col names, col types
+// root page no., col names, col types
+func (db *Db) GetTableMetaData(tblName string) (uint32, []string, []string, error) {
 	pg1, err := db.Pgr.LoadPage(1)
 	if err != nil {
 		return 0, nil, nil, err
@@ -129,7 +130,7 @@ func (db *Db) GetRow(tblName string, primaryKey string) (string, error) {
 	return storage.DeserializeRow(serRow), nil
 }
 
-func (db *Db) InsertIntoTable(tblName string, colVals []string) error {
+func (db *Db) InsertRow(tblName string, colVals []string) error {
 	rootPgNo, _, colTypes, err := db.GetTableMetaData(tblName)
 	if err != nil {
 		return err
@@ -156,7 +157,7 @@ func (db *Db) InsertIntoTable(tblName string, colVals []string) error {
 	return nil
 }
 
-func (db *Db) DeleteFromTable(tblName string, primaryKey string) error {
+func (db *Db) DeleteRow(tblName string, primaryKey string) error {
 	rootPgNo, _, colTypes, err := db.GetTableMetaData(tblName)
 	if err != nil {
 		return err
@@ -181,4 +182,31 @@ func (db *Db) DeleteFromTable(tblName string, primaryKey string) error {
 	}
 
 	return nil
+}
+
+func (db *Db) UpdateRow(tblName string, primaryKey string, newVals []string) error {
+	rootPgNo, _, colTypes, err := db.GetTableMetaData(tblName)
+	if err != nil {
+		return err
+	}
+
+	primaryKeyType := colTypes[0]
+	serKey := storage.SerializeRow([]string{primaryKeyType}, []string{primaryKey})
+
+	firstFreePtr, err := storage.GetFirstFreePagePtr(storage.DbFilePath)
+	if err != nil {
+		return err
+	}
+
+	rootPg, err := db.Pgr.LoadPage(rootPgNo)
+	if err != nil {
+		return err
+	}
+
+	err = db.Btree.BtreeDelete(rootPg, serKey, firstFreePtr)
+	if err != nil {
+		return err
+	}
+
+	return db.InsertRow(tblName, newVals)
 }

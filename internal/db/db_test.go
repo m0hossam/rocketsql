@@ -46,14 +46,14 @@ func TestInsertion(t *testing.T) { // Database System Concepts 7th Edition, Page
 	}
 
 	for _, colVals := range oldColVals {
-		err = db.InsertIntoTable(tblName, colVals)
+		err = db.InsertRow(tblName, colVals)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	for idx, colVals := range newColVals {
-		err = db.InsertIntoTable(tblName, colVals)
+		err = db.InsertRow(tblName, colVals)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -117,7 +117,7 @@ func TestDeletion(t *testing.T) {
 	}
 
 	for _, colVals := range oldColVals {
-		err = db.InsertIntoTable(tblName, colVals)
+		err = db.InsertRow(tblName, colVals)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -136,7 +136,7 @@ func TestDeletion(t *testing.T) {
 	}
 
 	for _, colVals := range oldColVals {
-		err = db.DeleteFromTable(tblName, colVals[0])
+		err = db.DeleteRow(tblName, colVals[0])
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -152,7 +152,7 @@ func TestDeletion(t *testing.T) {
 	}
 
 	for _, colVals := range oldColVals {
-		err = db.InsertIntoTable(tblName, colVals)
+		err = db.InsertRow(tblName, colVals)
 		if err != nil {
 			t.Fatal(err)
 		}

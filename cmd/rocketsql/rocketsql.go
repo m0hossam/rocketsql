@@ -4,36 +4,10 @@ import (
 	"fmt"
 
 	"github.com/m0hossam/rocketsql/internal/db"
-	"github.com/m0hossam/rocketsql/internal/storage"
 )
 
 func main() {
-	examineMetaTableExample()
 	runDbExample()
-}
-
-func examineMetaTableExample() {
-	fmt.Println("rocketsql> Welcome to RocketSQL...")
-	db, err := db.CreateDb("db")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	tblName := "Instructors"
-	colNames := []string{"Name", "Dept", "Salary"}
-	colTypes := []string{"VARCHAR(255)", "VARCHAR(255)", "INT"}
-	err = db.CreateTable(tblName, colNames, colTypes)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	pg, err := db.Pgr.LoadPage(1)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	storage.DumpBtree(db.Btree, pg, "meta.txt")
-	fmt.Println("rocketsql> Bye!")
 }
 
 func runDbExample() {
@@ -45,33 +19,76 @@ func runDbExample() {
 	}
 
 	tblName := "employees"
-	colNames := []string{"name", "salary", "dept"}
-	colTypes := []string{"VARCHAR(255)", "INT", "VARCHAR(255)"}
+	colNames := []string{"name", "salary", "dept"} // 1st column is the PK by default
+	colTypes := []string{"VARCHAR(32)", "INT", "VARCHAR(16)"}
 
-	err = db.CreateTable(tblName, colNames, colTypes)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	err = db.InsertIntoTable(tblName, []string{"Mohamed Hossam", "13000", "CSE"})
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	err = db.InsertIntoTable(tblName, []string{"Ahmed Nasr", "25000", "MPE"})
-	if err != nil {
+	if err := db.CreateTable(tblName, colNames, colTypes); err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	pg3, err := db.Pgr.LoadPage(3)
+	rows := [][]string{
+		{"Mohamed Hossam", "13000", "CSE"},
+		{"Ahmed Nasr", "25000", "MPE"},
+		{"Moataz Mokhtar", "30000", "ECE"},
+		{"Salma El-Sayed", "22500", "ARC"},
+		{"Mina Fayed", "33500", "CHE"},
+	}
+
+	// insert all rows
+	for _, row := range rows {
+		if err := db.InsertRow(tblName, row); err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+	printTable(db, tblName)
+
+	// delete one row
+	if err := db.DeleteRow(tblName, "Mohamed Hossam"); err != nil {
+		fmt.Println(err)
+		return
+	}
+	printTable(db, tblName)
+
+	// update one row
+	if err := db.UpdateRow(tblName, "Mina Fayed", []string{"Mina Fayed", "77777", "PRO"}); err != nil {
+		fmt.Println(err)
+		return
+	}
+	printTable(db, tblName)
+
+	fmt.Println("rocketsql> Bye!")
+}
+
+func printTable(db *db.Db, tblName string) {
+	// print table schema
+	fmt.Println("---------------------------------")
+	fmt.Println("Table [" + tblName + "]")
+	fmt.Println("---------------------------------")
+	rootPgNo, names, _, err := db.GetTableMetaData(tblName)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	storage.DumpBtree(db.Btree, pg3, "employees.txt")
-	it := db.Btree.BtreeFirst(pg3)
+	for i, name := range names {
+		s := name
+		if i != len(names) {
+			s += "|"
+		}
+		fmt.Print(s)
+	}
+	fmt.Println("\n---------------------------------")
+
+	// load the table's root page
+	rootPg, err := db.Pgr.LoadPage(rootPgNo)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	// print table rows
+	it := db.Btree.BtreeFirst(rootPg)
 	for row, isNotEnd, err := it.Next(); isNotEnd; row, isNotEnd, err = it.Next() {
 		if err != nil {
 			fmt.Println(err)
@@ -79,5 +96,6 @@ func runDbExample() {
 		}
 		fmt.Println(row)
 	}
-	fmt.Println("rocketsql> Bye!")
+	fmt.Println("---------------------------------")
+	fmt.Println()
 }
