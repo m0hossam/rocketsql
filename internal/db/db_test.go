@@ -77,7 +77,7 @@ func TestInsertion(t *testing.T) { // Database System Concepts 7th Edition, Page
 		}
 
 		if !equal {
-			t.Fatalf("Deletion failed: actual output (%s) is different from expected output (%s)", actual, expected)
+			t.Fatalf("Insertion failed: actual output (%s) is different from expected output (%s)", actual, expected)
 		}
 	}
 
