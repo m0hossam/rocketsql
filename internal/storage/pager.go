@@ -105,7 +105,7 @@ func CreateDb(name string, btree *Btree) error {
 	serKey := SerializeRow([]string{"VARCHAR(255)"}, []string{"first_free_page"})
 	serRow := SerializeRow([]string{"VARCHAR(255)", "INT"}, []string{"first_free_page", strconv.Itoa(0)})
 
-	err = btree.BtreeInsert(pg2, serKey, serRow, &firstFreePtr)
+	err = btree.BtreeInsert(2, serKey, serRow, &firstFreePtr)
 	if err != nil {
 		return err
 	}

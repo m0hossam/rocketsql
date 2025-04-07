@@ -73,22 +73,15 @@ func printTable(db *db.Db, tblName string) {
 	}
 	for i, name := range names {
 		s := name
-		if i != len(names) {
+		if i != len(names)-1 {
 			s += "|"
 		}
 		fmt.Print(s)
 	}
 	fmt.Println("\n---------------------------------")
 
-	// load the table's root page
-	rootPg, err := db.Pgr.LoadPage(rootPgNo)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
 	// print table rows
-	it := db.Btree.BtreeFirst(rootPg)
+	it := db.Btree.BtreeFirst(rootPgNo)
 	for row, isNotEnd, err := it.Next(); isNotEnd; row, isNotEnd, err = it.Next() {
 		if err != nil {
 			fmt.Println(err)

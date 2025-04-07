@@ -248,21 +248,31 @@ func (btree *Btree) getPath(key []byte, root *page) []uint32 { // returns page n
 	return path
 }
 
-func (btree *Btree) BtreeFirst(root *page) *Iterator {
-	for root.pType != LeafPage {
-		ptr := deserializePtr(root.cells[root.cellPtrArr[0]].value)
+func (btree *Btree) BtreeFirst(rootPgNo uint32) *Iterator {
+	rootPg, err := btree.pgr.LoadPage(rootPgNo)
+	if err != nil {
+		return nil
+	}
+
+	for rootPg.pType != LeafPage {
+		ptr := deserializePtr(rootPg.cells[rootPg.cellPtrArr[0]].value)
 		pg, err := btree.pgr.LoadPage(ptr)
 		if err != nil {
 			return nil
 		}
-		root = pg
+		rootPg = pg
 	}
-	it := createIterator(btree.pgr, root, 0)
+	it := createIterator(btree.pgr, rootPg, 0)
 	return it
 }
 
-func (btree *Btree) BtreeGet(key []byte, root *page) ([]byte, uint32) { // returns raw tuple data and the containing page number
-	path := btree.getPath(key, root)
+func (btree *Btree) BtreeGet(key []byte, rootPgNo uint32) ([]byte, uint32) { // returns raw tuple data and the containing page number
+	rootPg, err := btree.pgr.LoadPage(rootPgNo)
+	if err != nil {
+		return nil, DbNullPage
+	}
+
+	path := btree.getPath(key, rootPg)
 	ptr := path[len(path)-1]
 	pg, err := btree.pgr.LoadPage(ptr)
 	if err != nil {
@@ -395,7 +405,12 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 	return nil
 }
 
-func (btree *Btree) BtreeInsert(rootPg *page, key []byte, value []byte, firstFreePtr *uint32) error {
+func (btree *Btree) BtreeInsert(rootPgNo uint32, key []byte, value []byte, firstFreePtr *uint32) error {
+	rootPg, err := btree.pgr.LoadPage(rootPgNo)
+	if err != nil {
+		return err
+	}
+
 	if (len(key) + len(value) + 4) > dbMaxCellSize {
 		return errors.New("max cell size exceeded")
 	}
@@ -460,7 +475,12 @@ func (btree *Btree) BtreeInsert(rootPg *page, key []byte, value []byte, firstFre
 	return nil
 }
 
-func (btree *Btree) BtreeDelete(rootPg *page, key []byte, firstFreePtr *uint32) error {
+func (btree *Btree) BtreeDelete(rootPgNo uint32, key []byte, firstFreePtr *uint32) error {
+	rootPg, err := btree.pgr.LoadPage(rootPgNo)
+	if err != nil {
+		return err
+	}
+
 	path := btree.getPath(key, rootPg)
 	ptr := path[len(path)-1]
 	pg, err := btree.pgr.LoadPage(ptr)

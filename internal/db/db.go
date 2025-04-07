@@ -66,12 +66,7 @@ func (db *Db) CreateTable(tblName string, colNames []string, colTypes []string) 
 		return err
 	}
 
-	pg1, err := db.Pgr.LoadPage(1)
-	if err != nil {
-		return err
-	}
-
-	err = db.Btree.BtreeInsert(pg1, serKey, serRow, rootPageNo)
+	err = db.Btree.BtreeInsert(1, serKey, serRow, rootPageNo)
 	if err != nil {
 		return err
 	}
@@ -81,13 +76,8 @@ func (db *Db) CreateTable(tblName string, colNames []string, colTypes []string) 
 
 // root page no., col names, col types
 func (db *Db) GetTableMetaData(tblName string) (uint32, []string, []string, error) {
-	pg1, err := db.Pgr.LoadPage(1)
-	if err != nil {
-		return 0, nil, nil, err
-	}
-
 	serKey := storage.SerializeRow([]string{"VARCHAR(255)"}, []string{tblName})
-	serRow, pg := db.Btree.BtreeGet(serKey, pg1)
+	serRow, pg := db.Btree.BtreeGet(serKey, 1)
 	if pg == storage.DbNullPage {
 		return 0, nil, nil, errors.New("did not find table in master table")
 	}
@@ -117,12 +107,7 @@ func (db *Db) GetRow(tblName string, primaryKey string) (string, error) {
 	primaryKeyType := colTypes[0]
 	serKey := storage.SerializeRow([]string{primaryKeyType}, []string{primaryKey})
 
-	rootPg, err := db.Pgr.LoadPage(rootPgNo)
-	if err != nil {
-		return "", err
-	}
-
-	serRow, pg := db.Btree.BtreeGet(serKey, rootPg)
+	serRow, pg := db.Btree.BtreeGet(serKey, rootPgNo)
 	if pg == storage.DbNullPage {
 		return "", errors.New("did not find key in table")
 	}
@@ -144,12 +129,7 @@ func (db *Db) InsertRow(tblName string, colVals []string) error {
 		return err
 	}
 
-	rootPg, err := db.Pgr.LoadPage(rootPgNo)
-	if err != nil {
-		return err
-	}
-
-	err = db.Btree.BtreeInsert(rootPg, serKey, serRow, firstFreePtr)
+	err = db.Btree.BtreeInsert(rootPgNo, serKey, serRow, firstFreePtr)
 	if err != nil {
 		return err
 	}
@@ -171,12 +151,7 @@ func (db *Db) DeleteRow(tblName string, primaryKey string) error {
 		return err
 	}
 
-	rootPg, err := db.Pgr.LoadPage(rootPgNo)
-	if err != nil {
-		return err
-	}
-
-	err = db.Btree.BtreeDelete(rootPg, serKey, firstFreePtr)
+	err = db.Btree.BtreeDelete(rootPgNo, serKey, firstFreePtr)
 	if err != nil {
 		return err
 	}
@@ -198,12 +173,7 @@ func (db *Db) UpdateRow(tblName string, primaryKey string, newVals []string) err
 		return err
 	}
 
-	rootPg, err := db.Pgr.LoadPage(rootPgNo)
-	if err != nil {
-		return err
-	}
-
-	err = db.Btree.BtreeDelete(rootPg, serKey, firstFreePtr)
+	err = db.Btree.BtreeDelete(rootPgNo, serKey, firstFreePtr)
 	if err != nil {
 		return err
 	}
