@@ -8,7 +8,7 @@ type Scan interface {
 	GetInt64(colName string) (int64, error)
 	GetFloat32(colName string) (float32, error)
 	GetFloat64(colName string) (float64, error)
-	Getstring(colName string) (string, error)
+	GetString(colName string) (string, error)
 	HasColumn(colName string) bool
 	Close()
 }
