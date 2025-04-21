@@ -1,7 +1,7 @@
-package vm
+package scan
 
 type Scan interface {
-	Init() error
+	BeforeFirst() error
 	Next() (bool, error)
 	GetInt16(colName string) (int16, error)
 	GetInt32(colName string) (int32, error)
