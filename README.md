@@ -56,9 +56,9 @@ field is preceded by a 2-byte size field.
 - Deleting an entire table is not yet supported.
 - The SQL language is not yet supported.
 - ACID transactions are not yet supported.
-- No logging or recovery management
-- No concurrency control policy
-- No durability guarantees (e.g. flushing to disk to bypass OS cache)
+  - No logging or recovery management
+  - No concurrency control policy
+  - No durability guarantees (e.g. flushing to disk to bypass OS cache)
 - Cache/buffer memory management is not yet supported, pages are loaded from and saved to disk on demand. High disk I/O.
 - Datatypes like Date, Time, Boolean, Text and BLOB are not supported.
 - Rows that are bigger than the database page size are not supported.
