@@ -29,7 +29,7 @@ func TestParserSelectStar(t *testing.T) {
 	var b strings.Builder
 
 	b.WriteString("SELECT ")
-	for i, field := range q.SelectList.Fields {
+	for i, field := range q.SelectList {
 		if i > 0 {
 			b.WriteString(", ")
 		}
@@ -37,7 +37,7 @@ func TestParserSelectStar(t *testing.T) {
 	}
 
 	b.WriteString(" FROM ")
-	for i, field := range q.TableList.Fields {
+	for i, field := range q.TableList {
 		if i > 0 {
 			b.WriteString(", ")
 		}
@@ -79,7 +79,7 @@ func TestParserSelect(t *testing.T) {
 	var b strings.Builder
 
 	b.WriteString("SELECT ")
-	for i, field := range q.SelectList.Fields {
+	for i, field := range q.SelectList {
 		if i > 0 {
 			b.WriteString(", ")
 		}
@@ -87,7 +87,7 @@ func TestParserSelect(t *testing.T) {
 	}
 
 	b.WriteString(" FROM ")
-	for i, field := range q.TableList.Fields {
+	for i, field := range q.TableList {
 		if i > 0 {
 			b.WriteString(", ")
 		}
@@ -131,7 +131,7 @@ func TestParserCreateTable(t *testing.T) {
 	b.WriteString("CREATE TABLE ")
 	b.WriteString(data.TableName)
 	b.WriteString(" (")
-	for i, fieldDef := range data.FieldDefs.FieldDefs {
+	for i, fieldDef := range data.FieldDefs {
 		if i > 0 {
 			b.WriteString(", ")
 		}
@@ -174,14 +174,14 @@ func TestParserInsert(t *testing.T) {
 	b.WriteString("INSERT INTO ")
 	b.WriteString(data.TableName)
 	b.WriteString(" (")
-	for i, field := range data.Fields.Fields {
+	for i, field := range data.Fields {
 		if i > 0 {
 			b.WriteString(", ")
 		}
 		b.WriteString(field.Name)
 	}
 	b.WriteString(") VALUES (")
-	for i, constant := range data.Values.Constants {
+	for i, constant := range data.Values {
 		if i > 0 {
 			b.WriteString(", ")
 		}
