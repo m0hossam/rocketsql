@@ -7,7 +7,6 @@ import (
 /*
 
 #################################################################
-# TODO: Remove unnecessary matches                              #
 # TODO: Refactor structs and functions into query, dml, and ddl #
 #################################################################
 
@@ -167,10 +166,6 @@ func NewParser(sql string) *Parser {
 }
 
 func (p *Parser) parseField() (*Field, error) {
-	if !p.lexer.matchIdentifier() {
-		return nil, errors.New("invalid syntax")
-	}
-
 	id, err := p.lexer.eatIdentifier()
 	if err != nil {
 		return nil, err
@@ -287,32 +282,26 @@ func (p *Parser) parsePredicate() (*Predicate, error) {
 		return nil, err
 	}
 
-	if p.lexer.matchKeyword("AND") {
-		if err = p.lexer.eatKeyword("AND"); err != nil {
-			return nil, err
+	if p.lexer.matchKeyword("AND") || p.lexer.matchKeyword("OR") {
+		var kw string
+		if p.lexer.matchKeyword("AND") {
+			kw = "AND"
+		} else {
+			kw = "OR"
 		}
-		next, err := p.parsePredicate()
-		if err != nil {
-			return nil, err
-		}
-		return &Predicate{
-			Term: term,
-			Op:   "AND",
-			Next: next,
-		}, nil
-	}
 
-	if p.lexer.matchKeyword("OR") {
-		if err = p.lexer.eatKeyword("OR"); err != nil {
+		if err = p.lexer.eatKeyword(kw); err != nil {
 			return nil, err
 		}
+
 		next, err := p.parsePredicate()
 		if err != nil {
 			return nil, err
 		}
+
 		return &Predicate{
 			Term: term,
-			Op:   "OR",
+			Op:   kw,
 			Next: next,
 		}, nil
 	}
@@ -346,9 +335,6 @@ func (p *Parser) parseFieldList() (*FieldList, error) {
 }
 
 func (p *Parser) parseQuery() (*Query, error) {
-	if !p.lexer.matchKeyword("SELECT") {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatKeyword("SELECT"); err != nil {
 		return nil, err
 	}
@@ -367,9 +353,6 @@ func (p *Parser) parseQuery() (*Query, error) {
 		selectList = sl
 	}
 
-	if !p.lexer.matchKeyword("FROM") {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatKeyword("FROM"); err != nil {
 		return nil, err
 	}
@@ -462,24 +445,15 @@ func (p *Parser) parseTypeDef() (*TypeDef, error) {
 			return nil, err
 		}
 
-		if !p.lexer.matchDelim('(') {
-			return nil, errors.New("invalid syntax")
-		}
 		if err := p.lexer.eatDelim('('); err != nil {
 			return nil, err
 		}
 
-		if !p.lexer.matchIntConstant() {
-			return nil, errors.New("invalid syntax")
-		}
 		size, err := p.lexer.eatIntConstant()
 		if err != nil {
 			return nil, err
 		}
 
-		if !p.lexer.matchDelim(')') {
-			return nil, errors.New("invalid syntax")
-		}
 		if err := p.lexer.eatDelim(')'); err != nil {
 			return nil, err
 		}
@@ -491,9 +465,6 @@ func (p *Parser) parseTypeDef() (*TypeDef, error) {
 }
 
 func (p *Parser) parseFieldDef() (*FieldDef, error) {
-	if !p.lexer.matchIdentifier() {
-		return nil, errors.New("invalid syntax")
-	}
 	id, err := p.lexer.eatIdentifier()
 	if err != nil {
 		return nil, err
@@ -534,31 +505,19 @@ func (p *Parser) parseFieldDefs() (*FieldDefs, error) {
 }
 
 func (p *Parser) parseCreateTable() (*CreateTableData, error) {
-	if !p.lexer.matchKeyword("CREATE") {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatKeyword("CREATE"); err != nil {
 		return nil, err
 	}
 
-	if !p.lexer.matchKeyword("TABLE") {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatKeyword("TABLE"); err != nil {
 		return nil, err
 	}
 
-	if !p.lexer.matchIdentifier() {
-		return nil, errors.New("invalid syntax")
-	}
 	tableName, err := p.lexer.eatIdentifier()
 	if err != nil {
 		return nil, err
 	}
 
-	if !p.lexer.matchDelim('(') {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatDelim('('); err != nil {
 		return nil, err
 	}
@@ -568,9 +527,6 @@ func (p *Parser) parseCreateTable() (*CreateTableData, error) {
 		return nil, err
 	}
 
-	if !p.lexer.matchDelim(')') {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatDelim(')'); err != nil {
 		return nil, err
 	}
@@ -582,31 +538,19 @@ func (p *Parser) parseCreateTable() (*CreateTableData, error) {
 }
 
 func (p *Parser) parseInsert() (*InsertData, error) {
-	if !p.lexer.matchKeyword("INSERT") {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatKeyword("INSERT"); err != nil {
 		return nil, err
 	}
 
-	if !p.lexer.matchKeyword("INTO") {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatKeyword("INTO"); err != nil {
 		return nil, err
 	}
 
-	if !p.lexer.matchIdentifier() {
-		return nil, errors.New("invalid syntax")
-	}
 	tableName, err := p.lexer.eatIdentifier()
 	if err != nil {
 		return nil, err
 	}
 
-	if !p.lexer.matchDelim('(') {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatDelim('('); err != nil {
 		return nil, err
 	}
@@ -616,23 +560,14 @@ func (p *Parser) parseInsert() (*InsertData, error) {
 		return nil, err
 	}
 
-	if !p.lexer.matchDelim(')') {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatDelim(')'); err != nil {
 		return nil, err
 	}
 
-	if !p.lexer.matchKeyword("VALUES") {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatKeyword("VALUES"); err != nil {
 		return nil, err
 	}
 
-	if !p.lexer.matchDelim('(') {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatDelim('('); err != nil {
 		return nil, err
 	}
@@ -642,9 +577,6 @@ func (p *Parser) parseInsert() (*InsertData, error) {
 		return nil, err
 	}
 
-	if !p.lexer.matchDelim(')') {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatDelim(')'); err != nil {
 		return nil, err
 	}
@@ -657,23 +589,14 @@ func (p *Parser) parseInsert() (*InsertData, error) {
 }
 
 func (p *Parser) parseDelete() (*DeleteData, error) {
-	if !p.lexer.matchKeyword("DELETE") {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatKeyword("DELETE"); err != nil {
 		return nil, err
 	}
 
-	if !p.lexer.matchKeyword("FROM") {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatKeyword("FROM"); err != nil {
 		return nil, err
 	}
 
-	if !p.lexer.matchIdentifier() {
-		return nil, errors.New("invalid syntax")
-	}
 	tableName, err := p.lexer.eatIdentifier()
 	if err != nil {
 		return nil, err
@@ -698,24 +621,15 @@ func (p *Parser) parseDelete() (*DeleteData, error) {
 }
 
 func (p *Parser) parseUpdate() (*UpdateData, error) {
-	if !p.lexer.matchKeyword("UPDATE") {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatKeyword("UPDATE"); err != nil {
 		return nil, err
 	}
 
-	if !p.lexer.matchIdentifier() {
-		return nil, errors.New("invalid syntax")
-	}
 	tableName, err := p.lexer.eatIdentifier()
 	if err != nil {
 		return nil, err
 	}
 
-	if !p.lexer.matchKeyword("SET") {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatKeyword("SET"); err != nil {
 		return nil, err
 	}
@@ -725,9 +639,6 @@ func (p *Parser) parseUpdate() (*UpdateData, error) {
 		return nil, err
 	}
 
-	if !p.lexer.matchOperator("=") {
-		return nil, errors.New("invalid syntax")
-	}
 	if err := p.lexer.eatOperator("="); err != nil {
 		return nil, err
 	}
