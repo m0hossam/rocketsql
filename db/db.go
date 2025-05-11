@@ -6,11 +6,8 @@ import (
 	"strings"
 
 	"github.com/m0hossam/rocketsql/btree"
-	"github.com/m0hossam/rocketsql/compiler"
 	"github.com/m0hossam/rocketsql/page"
-	"github.com/m0hossam/rocketsql/processor"
 	"github.com/m0hossam/rocketsql/record"
-	"github.com/m0hossam/rocketsql/scan"
 )
 
 type Db struct {
@@ -35,20 +32,6 @@ func (db *Db) Close() error {
 		return db.btree.Close()
 	}
 	return nil
-}
-
-func (db *Db) RunSQL(sql string) (scan.Scan, error) {
-	plan, err := compiler.CompileSQL(sql)
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := processor.ExecuteSQL(plan)
-	if err != nil {
-		return nil, err
-	}
-
-	return res, nil
 }
 
 /*

@@ -166,7 +166,11 @@ func TestParserInsert(t *testing.T) {
 
 	data := pt.InsertData
 	if data == nil {
-		t.Fatalf("Expected a insert statement, got: nil")
+		t.Fatalf("Expected an insert statement, got: nil")
+	}
+
+	if data.Fields == nil {
+		t.Fatalf("Expected fields, got: nil")
 	}
 
 	var b strings.Builder
@@ -202,6 +206,57 @@ func TestParserInsert(t *testing.T) {
 
 	if b.String() != sql {
 		t.Errorf("Expected 'INSERT INTO employees (name, age, dept) VALUES ('Mohamed', 30, 'HR')', got: '%s'", b.String())
+	}
+}
+
+func TestParserInsertWithoutFields(t *testing.T) {
+	sql := "INSERT INTO employees VALUES ('Mohamed', 30, 'HR')"
+	p := NewParser(sql)
+
+	pt, err := p.Parse()
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if pt.Type != InsertTree {
+		t.Fatalf("Expected InsertTree, got: %v", pt.Type)
+	}
+
+	data := pt.InsertData
+	if data == nil {
+		t.Fatalf("Expected an insert statement, got: nil")
+	}
+
+	if data.Fields != nil {
+		t.Fatalf("Expected nil, got: %v", data.Fields)
+	}
+
+	var b strings.Builder
+
+	b.WriteString("INSERT INTO ")
+	b.WriteString(data.TableName)
+	b.WriteString(" VALUES (")
+	for i, constant := range data.Values {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		switch constant.Type {
+		case StringToken:
+			b.WriteString("'")
+			b.WriteString(constant.StrVal)
+			b.WriteString("'")
+		case IntegerToken:
+			b.WriteString(strconv.Itoa(constant.IntVal))
+		case FloatToken:
+			b.WriteString(strconv.FormatFloat(constant.FloatVal, 'f', -1, 64))
+		default:
+			t.Fatalf("Unexpected value type: %T", constant.Type)
+		}
+	}
+	b.WriteString(")")
+
+	if b.String() != sql {
+		t.Errorf("Expected 'INSERT INTO employees VALUES ('Mohamed', 30, 'HR')', got: '%s'", b.String())
 	}
 }
 

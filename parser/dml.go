@@ -1,9 +1,9 @@
 package parser
 
-// <Insert> := INSERT INTO IdTok ( <FieldList> ) VALUES ( <ConstList> )
+// <Insert> := INSERT INTO IdTok [ ( <FieldList> ) ] VALUES ( <ConstList> )
 type InsertData struct {
 	TableName string
-	Fields    []*Field
+	Fields    []*Field // optional
 	Values    []*Constant
 }
 

@@ -1,6 +1,10 @@
 package parser
 
-import "errors"
+import (
+	"errors"
+	"strconv"
+	"strings"
+)
 
 // <TypeDef> := SMALLINT | INT | BIGINT | FLOAT | DOUBLE | CHAR ( IntTok ) | VARCHAR ( IntTok )
 type TypeDef struct {
@@ -18,6 +22,7 @@ type FieldDef struct {
 type CreateTableData struct {
 	TableName string
 	FieldDefs []*FieldDef
+	SchemaSql string
 }
 
 func (p *Parser) parseTypeDef() (*TypeDef, error) {
@@ -149,5 +154,30 @@ func (p *Parser) parseCreateTable() (*CreateTableData, error) {
 	return &CreateTableData{
 		TableName: tableName,
 		FieldDefs: fieldDefs,
+		SchemaSql: getSqlSchema(tableName, fieldDefs),
 	}, nil
+}
+
+func getSqlSchema(tblName string, fieldDefs []*FieldDef) string {
+	var b strings.Builder
+
+	b.WriteString("CREATE TABLE ")
+	b.WriteString(tblName)
+	b.WriteString(" (")
+	for i, fieldDef := range fieldDefs {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(fieldDef.Name)
+		b.WriteString(" ")
+		b.WriteString(fieldDef.TypeDef.Type)
+		if fieldDef.TypeDef.Size > 0 {
+			b.WriteString("(")
+			b.WriteString(strconv.Itoa(fieldDef.TypeDef.Size))
+			b.WriteString(")")
+		}
+	}
+	b.WriteString(")")
+
+	return b.String()
 }
