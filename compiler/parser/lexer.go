@@ -126,7 +126,7 @@ func (l *lexer) getWordToken() token {
 	word := l.stream[start:l.pos]
 
 	if _, isKeyword := l.keywords[strings.ToUpper(word)]; isKeyword {
-		return token{tType: KeywordToken, stringVal: word}
+		return token{tType: KeywordToken, stringVal: strings.ToUpper(word)}
 	}
 
 	return token{tType: IdentifierToken, stringVal: word}

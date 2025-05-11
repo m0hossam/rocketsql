@@ -35,17 +35,20 @@ func (p *Parser) parseInsert() (*InsertData, error) {
 		return nil, err
 	}
 
-	if err := p.lexer.eatDelim('('); err != nil {
-		return nil, err
-	}
+	var fieldList []*Field // optional field list
+	if p.lexer.matchDelim('(') {
+		if err := p.lexer.eatDelim('('); err != nil {
+			return nil, err
+		}
 
-	fieldList, err := p.parseFieldList()
-	if err != nil {
-		return nil, err
-	}
+		fieldList, err = p.parseFieldList()
+		if err != nil {
+			return nil, err
+		}
 
-	if err := p.lexer.eatDelim(')'); err != nil {
-		return nil, err
+		if err := p.lexer.eatDelim(')'); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := p.lexer.eatKeyword("VALUES"); err != nil {

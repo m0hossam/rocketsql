@@ -24,6 +24,7 @@ go.work.sum
 # env file
 .env
 
+
 # Database files
 *.rocketsql
 *.db
@@ -34,3 +35,6 @@ go.work.sum
 
 # Do not ignore expected results of test cases
 !test_data/*.txt
+
+# IDE files
+.vscode/
