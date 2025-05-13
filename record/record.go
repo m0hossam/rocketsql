@@ -13,10 +13,6 @@ type Record struct {
 	Values  []*parser.Constant
 }
 
-type SerializedRecord struct {
-	Data []byte
-}
-
 func NewRecord(data []byte) (*Record, error) {
 	nFields := uint8(data[0])
 	columns := make([]*parser.TypeDef, nFields)
@@ -76,30 +72,30 @@ func NewRecord(data []byte) (*Record, error) {
 	return &Record{Columns: columns, Values: values}, nil
 }
 
-func NewSerializedRecord(typeDefs []*parser.TypeDef, values []*parser.Constant) (*SerializedRecord, error) {
-	nFields := len(typeDefs)
+func (r *Record) Serialize() ([]byte, error) {
+	nFields := len(r.Columns)
 
 	if nFields <= 0 {
 		return nil, errors.New("no fields")
 	}
-	if nFields != len(values) {
+	if nFields != len(r.Values) {
 		return nil, errors.New("number of fields and values do not match")
 	}
 
 	b := make([]byte, 0)
 	b = append(b, uint8(nFields))
 
-	for _, typeDef := range typeDefs {
+	for _, typeDef := range r.Columns {
 		b = append(b, uint8(StringToDataType(typeDef.Type)))
 	}
 
 	i := 0
-	for _, typeDef := range typeDefs {
+	for _, typeDef := range r.Columns {
 		if typeDef.Type == "NULL" {
 			continue
 		}
 
-		curValue := values[i]
+		curValue := r.Values[i]
 		i++
 
 		switch typeDef.Type {
@@ -157,5 +153,5 @@ func NewSerializedRecord(typeDefs []*parser.TypeDef, values []*parser.Constant) 
 		}
 	}
 
-	return &SerializedRecord{Data: b}, nil
+	return b, nil
 }

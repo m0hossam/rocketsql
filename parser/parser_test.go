@@ -321,21 +321,17 @@ func TestParserUpdate(t *testing.T) {
 	b.WriteString(" SET ")
 	b.WriteString(data.Field.Name)
 	b.WriteString(" = ")
-	if data.Expression.IsField {
-		b.WriteString(data.Expression.Field.Name)
-	} else {
-		switch data.Expression.Constant.Type {
-		case StringToken:
-			b.WriteString("'")
-			b.WriteString(data.Expression.Constant.StrVal)
-			b.WriteString("'")
-		case IntegerToken:
-			b.WriteString(strconv.FormatInt(data.Expression.Constant.IntVal, 10))
-		case FloatToken:
-			b.WriteString(strconv.FormatFloat(data.Expression.Constant.FloatVal, 'f', -1, 64))
-		default:
-			t.Fatalf("Unexpected value type: %T", data.Expression.Constant.Type)
-		}
+	switch data.Constant.Type {
+	case StringToken:
+		b.WriteString("'")
+		b.WriteString(data.Constant.StrVal)
+		b.WriteString("'")
+	case IntegerToken:
+		b.WriteString(strconv.FormatInt(data.Constant.IntVal, 10))
+	case FloatToken:
+		b.WriteString(strconv.FormatFloat(data.Constant.FloatVal, 'f', -1, 64))
+	default:
+		t.Fatalf("Unexpected value type: %T", data.Constant.Type)
 	}
 	b.WriteString(" WHERE ")
 	b.WriteString(data.Predicate.Term.Lhs.Field.Name)

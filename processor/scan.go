@@ -13,16 +13,15 @@ type Scan interface {
 	HasColumn(colName string) bool
 }
 
-type UpdateScan interface {
+type ModifyScan interface {
 	Scan
-	SetInt16(colName string, val int16)
-	SetInt32(colName string, val int32)
-	SetInt64(colName string, val int64)
-	SetFloat32(colName string, val float32)
-	SetFloat64(colName string, val float64)
-	SetString(colName string, val string)
-	Insert()
-	Delete()
+	SetInt16(colName string, val int16) error
+	SetInt32(colName string, val int32) error
+	SetInt64(colName string, val int64) error
+	SetFloat32(colName string, val float32) error
+	SetFloat64(colName string, val float64) error
+	SetString(colName string, val string) error
+	InsertRow() error
+	DeleteRow() error
 	GetRowKey() []byte
-	MoveToRow(key []byte)
 }

@@ -24,21 +24,22 @@ func NewTableManager(bt *btree.Btree) *TableManager {
 }
 
 func (tm *TableManager) GetTableMetadata(tableName string) (*TableMetadata, error) {
-	typeDefs := []*parser.TypeDef{{Type: "VARCHAR", Size: 255}}
-	consts := []*parser.Constant{{StrVal: tableName}}
+	rec := &record.Record{
+		Columns: []*parser.TypeDef{{Type: "VARCHAR", Size: 255}},
+		Values:  []*parser.Constant{{StrVal: tableName}},
+	}
 
-	serRec, err := record.NewSerializedRecord(typeDefs, consts)
+	key, err := rec.Serialize()
 	if err != nil {
 		return nil, err
 	}
 
-	key := serRec.Data
 	data, pgNo := tm.btree.Get(key, 1)
 	if pgNo == 0 {
 		return nil, errors.New("table not found")
 	}
 
-	rec, err := record.NewRecord(data)
+	rec, err = record.NewRecord(data)
 	if err != nil {
 		return nil, err
 	}

@@ -22,7 +22,7 @@ import (
 
 <Delete> := DELETE FROM IdTok [ WHERE <Predicate> ]
 
-<Update> := UPDATE IdTok SET <Field> = <Expression> [ WHERE <Predicate> ]
+<Update> := UPDATE IdTok SET <Field> = <Constant> [ WHERE <Predicate> ]
 
 <DDL> := <CreateTable>
 

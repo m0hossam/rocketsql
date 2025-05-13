@@ -5,6 +5,7 @@ import (
 
 	"github.com/m0hossam/rocketsql/btree"
 	"github.com/m0hossam/rocketsql/metadata"
+	"github.com/m0hossam/rocketsql/parser"
 	"github.com/m0hossam/rocketsql/record"
 )
 
@@ -144,4 +145,119 @@ func (ts *TableScan) GetType(colName string) (string, error) {
 func (ts *TableScan) HasColumn(colName string) bool {
 	_, ok := ts.columnIndex[colName]
 	return ok
+}
+
+func (ts *TableScan) SetInt16(colName string, val int16) error {
+	i, columnExists := ts.columnIndex[colName]
+	if !columnExists {
+		return errors.New("no column with this name")
+	}
+
+	// Allow casting to int32 & int64
+	if ts.curRecord.Columns[i].Type != "BIGINT" &&
+		ts.curRecord.Columns[i].Type != "INT" &&
+		ts.curRecord.Columns[i].Type != "SMALLINT" {
+		return errors.New("column type mismatch")
+	}
+
+	ts.curRecord.Values[i].IntVal = int64(val)
+	return nil
+}
+
+func (ts *TableScan) SetInt32(colName string, val int32) error {
+	i, columnExists := ts.columnIndex[colName]
+	if !columnExists {
+		return errors.New("no column with this name")
+	}
+
+	if ts.curRecord.Columns[i].Type != "INT" && ts.curRecord.Columns[i].Type != "BIGINT" { // Allow casting to int64
+		return errors.New("column type mismatch")
+	}
+
+	ts.curRecord.Values[i].IntVal = int64(val)
+	return nil
+}
+
+func (ts *TableScan) SetInt64(colName string, val int64) error {
+	i, columnExists := ts.columnIndex[colName]
+	if !columnExists {
+		return errors.New("no column with this name")
+	}
+
+	if ts.curRecord.Columns[i].Type != "BIGINT" {
+		return errors.New("column type mismatch")
+	}
+
+	ts.curRecord.Values[i].IntVal = int64(val)
+	return nil
+}
+
+func (ts *TableScan) SetFloat32(colName string, val float32) error {
+	i, columnExists := ts.columnIndex[colName]
+	if !columnExists {
+		return errors.New("no column with this name")
+	}
+
+	if ts.curRecord.Columns[i].Type != "FLOAT" && ts.curRecord.Columns[i].Type != "DOUBLE" { // Allow casting to float64
+		return errors.New("column type mismatch")
+	}
+
+	ts.curRecord.Values[i].FloatVal = float64(val)
+	return nil
+}
+
+func (ts *TableScan) SetFloat64(colName string, val float64) error {
+	i, columnExists := ts.columnIndex[colName]
+	if !columnExists {
+		return errors.New("no column with this name")
+	}
+
+	if ts.curRecord.Columns[i].Type != "DOUBLE" {
+		return errors.New("column type mismatch")
+	}
+
+	ts.curRecord.Values[i].FloatVal = val
+	return nil
+}
+
+func (ts *TableScan) SetString(colName string, val string) error {
+	i, columnExists := ts.columnIndex[colName]
+	if !columnExists {
+		return errors.New("no column with this name")
+	}
+
+	if ts.curRecord.Columns[i].Type != "CHAR" && ts.curRecord.Columns[i].Type != "VARCHAR" {
+		return errors.New("column type mismatch")
+	}
+
+	ts.curRecord.Values[i].StrVal = val
+	return nil
+}
+
+func (ts *TableScan) InsertRow() error {
+	// Do not use GetRowKey() because this might be part of an update operation and the key could be modified
+	keyRec := &record.Record{
+		Columns: []*parser.TypeDef{ts.curRecord.Columns[0]},
+		Values:  []*parser.Constant{ts.curRecord.Values[0]},
+	}
+
+	key, err := keyRec.Serialize()
+	if err != nil {
+		return err
+	}
+
+	value, err := ts.curRecord.Serialize()
+	if err != nil {
+		return err
+	}
+
+	return ts.btree.Insert(ts.metadata.RootPageNo, key, value)
+}
+
+func (ts *TableScan) DeleteRow() error {
+	return ts.btree.Delete(ts.metadata.RootPageNo, ts.GetRowKey())
+}
+
+func (ts *TableScan) GetRowKey() []byte {
+	return ts.btreeIt.GetKey()
 }

@@ -1,6 +1,8 @@
 package processor
 
 import (
+	"errors"
+
 	"github.com/m0hossam/rocketsql/parser"
 )
 
@@ -201,4 +203,67 @@ func (ss *SelectScan) GetType(colName string) (string, error) {
 
 func (ss *SelectScan) HasColumn(colName string) bool {
 	return ss.inputScan.HasColumn(colName)
+}
+
+func (ss *SelectScan) SetInt16(colName string, val int16) error {
+	if ms, ok := ss.inputScan.(ModifyScan); ok {
+		return ms.SetInt16(colName, val)
+	}
+	return errors.New("modify scan not supported")
+}
+
+func (ss *SelectScan) SetInt32(colName string, val int32) error {
+	if ms, ok := ss.inputScan.(ModifyScan); ok {
+		return ms.SetInt32(colName, val)
+	}
+	return errors.New("modify scan not supported")
+}
+
+func (ss *SelectScan) SetInt64(colName string, val int64) error {
+	if ms, ok := ss.inputScan.(ModifyScan); ok {
+		return ms.SetInt64(colName, val)
+	}
+	return errors.New("modify scan not supported")
+}
+
+func (ss *SelectScan) SetFloat32(colName string, val float32) error {
+	if ms, ok := ss.inputScan.(ModifyScan); ok {
+		return ms.SetFloat32(colName, val)
+	}
+	return errors.New("modify scan not supported")
+}
+
+func (ss *SelectScan) SetFloat64(colName string, val float64) error {
+	if ms, ok := ss.inputScan.(ModifyScan); ok {
+		return ms.SetFloat64(colName, val)
+	}
+	return errors.New("modify scan not supported")
+}
+
+func (ss *SelectScan) SetString(colName string, val string) error {
+	if ms, ok := ss.inputScan.(ModifyScan); ok {
+		return ms.SetString(colName, val)
+	}
+	return errors.New("modify scan not supported")
+}
+
+func (ss *SelectScan) InsertRow() error {
+	if ms, ok := ss.inputScan.(ModifyScan); ok {
+		return ms.InsertRow()
+	}
+	return errors.New("modify scan not supported")
+}
+
+func (ss *SelectScan) DeleteRow() error {
+	if ms, ok := ss.inputScan.(ModifyScan); ok {
+		return ms.DeleteRow()
+	}
+	return errors.New("modify scan not supported")
+}
+
+func (ss *SelectScan) GetRowKey() []byte {
+	if ms, ok := ss.inputScan.(ModifyScan); ok {
+		return ms.GetRowKey()
+	}
+	return nil
 }

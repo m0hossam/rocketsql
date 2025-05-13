@@ -64,6 +64,11 @@ func (it *BtreeIterator) Next() ([]byte, bool, error) {
 	return data, true, nil
 }
 
+func (it *BtreeIterator) GetKey() []byte {
+	off := it.curPg.CellPtrArr[it.curSlot]
+	return it.curPg.Cells[off].Key
+}
+
 func upperBoundIndex(pg *page.Page, key []byte) (int, error) { // returns index of 1st cell with a key > new key, or the no. of cells if none found
 	l := 0
 	r := int(pg.NumCells) - 1

@@ -13,12 +13,12 @@ type DeleteData struct {
 	Predicate *Predicate
 }
 
-// <Update> := UPDATE IdTok SET <Field> = <Expression> [ WHERE <Predicate> ]
+// <Update> := UPDATE IdTok SET <Field> = <Constant> [ WHERE <Predicate> ]
 type UpdateData struct {
-	TableName  string
-	Field      *Field
-	Expression *Expression
-	Predicate  *Predicate
+	TableName string
+	Field     *Field
+	Constant  *Constant
+	Predicate *Predicate
 }
 
 func (p *Parser) parseInsert() (*InsertData, error) {
@@ -130,7 +130,7 @@ func (p *Parser) parseUpdate() (*UpdateData, error) {
 		return nil, err
 	}
 
-	expression, err := p.parseExpression()
+	constant, err := p.parseConstant()
 	if err != nil {
 		return nil, err
 	}
@@ -148,9 +148,9 @@ func (p *Parser) parseUpdate() (*UpdateData, error) {
 	}
 
 	return &UpdateData{
-		TableName:  tableName,
-		Field:      field,
-		Expression: expression,
-		Predicate:  predicate,
+		TableName: tableName,
+		Field:     field,
+		Constant:  constant,
+		Predicate: predicate,
 	}, nil
 }
