@@ -20,6 +20,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
+	defer db.Close()
 
 	for {
 		fmt.Print("rocketSQL> ")
@@ -36,7 +37,7 @@ func main() {
 		rowsAffected, resultTable, err := db.ExecuteSQL(input)
 		if err != nil {
 			fmt.Println(err)
-			return
+			continue
 		}
 
 		if resultTable == nil {
@@ -44,7 +45,7 @@ func main() {
 		} else {
 			if err := resultTable.BeforeFirst(); err != nil {
 				fmt.Println(err)
-				return
+				continue
 			}
 
 			for {
@@ -52,7 +53,7 @@ func main() {
 
 				if err != nil {
 					fmt.Println(err)
-					return
+					continue
 				}
 
 				if !next {
