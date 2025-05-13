@@ -158,9 +158,9 @@ func (ss *SelectScan) BeforeFirst() error {
 func (ss *SelectScan) Next() (bool, error) {
 	// Loop through records until we reach one that satisfies the predicate or the end of the scan or an error
 	for {
-		isNotEnd, err := ss.inputScan.Next()
+		next, err := ss.inputScan.Next()
 
-		if !isNotEnd || err != nil {
+		if !next || err != nil {
 			return false, err
 		}
 

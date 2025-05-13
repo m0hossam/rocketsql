@@ -39,7 +39,7 @@ func (ts *TableScan) BeforeFirst() error {
 }
 
 func (ts *TableScan) Next() (bool, error) {
-	serializedRecord, isNotEnd, err := ts.btreeIt.Next()
+	serializedRecord, next, err := ts.btreeIt.Next()
 	if err != nil {
 		return false, err
 	}
@@ -48,7 +48,7 @@ func (ts *TableScan) Next() (bool, error) {
 		return false, err
 	}
 	ts.curRecord = record
-	return isNotEnd, nil
+	return next, nil
 }
 
 func (ts *TableScan) GetInt16(colName string) (int16, error) {

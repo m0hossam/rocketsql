@@ -25,15 +25,15 @@ func (ps *ProductScan) BeforeFirst() error {
 }
 
 func (ps *ProductScan) Next() (bool, error) {
-	hasNext, err := ps.s2.Next() // Advance s2
+	next, err := ps.s2.Next() // Advance s2
 
 	if err != nil {
 		return false, err
 	}
 
-	if !hasNext { // If we looped through s2
-		hasNext, err = ps.s1.Next() // Advance s1
-		if !hasNext || err != nil { // If we looped through s1 (and consequently s2) or encountered an error
+	if !next { // If we looped through s2
+		next, err = ps.s1.Next() // Advance s1
+		if !next || err != nil { // If we looped through s1 (and consequently s2) or encountered an error
 			return false, err
 		}
 
