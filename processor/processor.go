@@ -236,7 +236,7 @@ func (p *Processor) ExecuteQuery(query *parser.Query) (Scan, error) {
 	tableScan := NewTableScan(metadata, p.btree)
 	var productScan *ProductScan
 	for i := 1; i < len(query.TableList); i++ {
-		metadata, err = p.tblManager.GetTableMetadata(query.TableList[0].Name)
+		metadata, err = p.tblManager.GetTableMetadata(query.TableList[i].Name)
 		if err != nil {
 			return nil, err
 		}
