@@ -156,7 +156,7 @@ func (ts *TableScan) GetRow() string {
 		case parser.IntegerToken:
 			sb.WriteString(strconv.FormatInt(val.IntVal, 10))
 		case parser.FloatToken:
-			sb.WriteString(strconv.FormatFloat(val.FloatVal, 'f', -1, 64))
+			sb.WriteString(strconv.FormatFloat(val.FloatVal, 'f', 2, 64))
 		case parser.StringToken:
 			sb.WriteString(val.StrVal)
 		default:
