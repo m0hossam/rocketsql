@@ -2,6 +2,8 @@ package processor
 
 import (
 	"errors"
+	"strconv"
+	"strings"
 
 	"github.com/m0hossam/rocketsql/btree"
 	"github.com/m0hossam/rocketsql/metadata"
@@ -40,8 +42,8 @@ func (ts *TableScan) BeforeFirst() error {
 }
 
 func (ts *TableScan) Next() (bool, error) {
-	serializedRecord, next, err := ts.btreeIt.Next()
-	if err != nil {
+	serializedRecord, ok, err := ts.btreeIt.Next()
+	if !ok || err != nil {
 		return false, err
 	}
 	record, err := record.NewRecord(serializedRecord)
@@ -49,7 +51,7 @@ func (ts *TableScan) Next() (bool, error) {
 		return false, err
 	}
 	ts.curRecord = record
-	return next, nil
+	return true, nil
 }
 
 func (ts *TableScan) GetInt16(colName string) (int16, error) {
@@ -140,6 +142,43 @@ func (ts *TableScan) GetType(colName string) (string, error) {
 	}
 
 	return ts.curRecord.Columns[i].Type, nil
+}
+
+func (ts *TableScan) GetRow() string {
+	var sb strings.Builder
+
+	for i, val := range ts.curRecord.Values {
+		if i != 0 {
+			sb.WriteString("|")
+		}
+
+		switch val.Type {
+		case parser.IntegerToken:
+			sb.WriteString(strconv.FormatInt(val.IntVal, 10))
+		case parser.FloatToken:
+			sb.WriteString(strconv.FormatFloat(val.FloatVal, 'f', -1, 64))
+		case parser.StringToken:
+			sb.WriteString(val.StrVal)
+		default:
+			return ""
+		}
+	}
+
+	return sb.String()
+}
+
+func (ts *TableScan) GetFields() string {
+	var sb strings.Builder
+
+	for i, field := range ts.metadata.TableSchema.FieldDefs {
+		if i != 0 {
+			sb.WriteString("|")
+		}
+
+		sb.WriteString(field.Name)
+	}
+
+	return sb.String()
 }
 
 func (ts *TableScan) HasColumn(colName string) bool {

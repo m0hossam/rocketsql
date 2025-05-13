@@ -10,6 +10,8 @@ type Scan interface {
 	GetFloat64(colName string) (float64, error)
 	GetString(colName string) (string, error)
 	GetType(colName string) (string, error)
+	GetRow() string
+	GetFields() string
 	HasColumn(colName string) bool
 }
 

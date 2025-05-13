@@ -119,8 +119,11 @@ func (ss *SelectScan) resolveExpression(expr *parser.Expression) *parser.Constan
 }
 
 func (ss *SelectScan) isPredicateSatisfied(predicate *parser.Predicate) bool {
-	var termRes bool
+	if predicate == nil {
+		return true
+	}
 
+	var termRes bool
 	leftConst := ss.resolveExpression(predicate.Term.Lhs)
 	rightConst := ss.resolveExpression(predicate.Term.Rhs)
 
@@ -199,6 +202,14 @@ func (ss *SelectScan) GetString(colName string) (string, error) {
 
 func (ss *SelectScan) GetType(colName string) (string, error) {
 	return ss.inputScan.GetType(colName)
+}
+
+func (ss *SelectScan) GetRow() string {
+	return ss.inputScan.GetRow()
+}
+
+func (ss *SelectScan) GetFields() string {
+	return ss.inputScan.GetFields()
 }
 
 func (ss *SelectScan) HasColumn(colName string) bool {

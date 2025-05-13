@@ -43,7 +43,7 @@ func newBtreeIterator(pgr *pager.Pager, pg *page.Page, idx int) *BtreeIterator {
 	}
 }
 
-// returns row, isNotEnd
+// returns row, ok
 func (it *BtreeIterator) Next() ([]byte, bool, error) {
 	for it.curSlot >= int(it.curPg.NumCells) {
 		if it.curPg.LastPtr == page.DbNullPage {
@@ -65,7 +65,7 @@ func (it *BtreeIterator) Next() ([]byte, bool, error) {
 }
 
 func (it *BtreeIterator) GetKey() []byte {
-	off := it.curPg.CellPtrArr[it.curSlot]
+	off := it.curPg.CellPtrArr[it.curSlot-1]
 	return it.curPg.Cells[off].Key
 }
 
@@ -593,18 +593,6 @@ func (btree *Btree) Close() error {
 	return nil
 }
 
-/*
-#################################################################################################
-#################################################################################################
-TODO: REMOVE EVERYTHING BELOW THIS BLOCK ########################################################
-#################################################################################################
-#################################################################################################
-*/
-
 func (btree *Btree) GetNewPagePtr() *uint32 {
 	return btree.pgr.GetNewPagePtr()
-}
-
-func (btree *Btree) GetPager() *pager.Pager {
-	return btree.pgr
 }

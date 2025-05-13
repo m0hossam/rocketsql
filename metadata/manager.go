@@ -26,7 +26,7 @@ func NewTableManager(bt *btree.Btree) *TableManager {
 func (tm *TableManager) GetTableMetadata(tableName string) (*TableMetadata, error) {
 	rec := &record.Record{
 		Columns: []*parser.TypeDef{{Type: "VARCHAR", Size: 255}},
-		Values:  []*parser.Constant{{StrVal: tableName}},
+		Values:  []*parser.Constant{{Type: parser.StringToken, StrVal: tableName}},
 	}
 
 	key, err := rec.Serialize()

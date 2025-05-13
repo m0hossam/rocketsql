@@ -103,6 +103,15 @@ func (ps *ProductScan) GetType(colName string) (string, error) {
 	return ps.s2.GetType(colName)
 }
 
+func (ps *ProductScan) GetRow() string {
+	return ps.s1.GetRow() + "|" + ps.s2.GetRow()
+}
+
+func (ps *ProductScan) GetFields() string {
+	return ps.s1.GetFields() + "|" + ps.s2.GetFields()
+
+}
+
 func (ps *ProductScan) HasColumn(colName string) bool {
 	return ps.s1.HasColumn(colName) || ps.s2.HasColumn(colName)
 }

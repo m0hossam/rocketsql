@@ -1,6 +1,9 @@
 package processor
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 type ProjectScan struct {
 	inputScan Scan
@@ -8,6 +11,7 @@ type ProjectScan struct {
 }
 
 func NewProjectScan(inputScan Scan, fields []string) *ProjectScan {
+
 	fieldsMap := make(map[string]struct{}, len(fields))
 	for _, field := range fields {
 		fieldsMap[field] = struct{}{}
@@ -82,9 +86,53 @@ func (ps *ProjectScan) GetType(colName string) (string, error) {
 	return "", errors.New("field not included in projection")
 }
 
+func (ps *ProjectScan) GetRow() string {
+	row := ps.inputScan.GetRow()
+	if _, star := ps.fields["*"]; star {
+		return row
+	}
+
+	fields := ps.inputScan.GetFields()
+	rowVals := strings.Split(row, "|")
+	fieldVals := strings.Split(fields, "|")
+	var sb strings.Builder
+
+	if len(rowVals) != len(fieldVals) {
+		return ""
+	}
+
+	for i, f := range fieldVals {
+		if _, ok := ps.fields[f]; ok {
+			sb.WriteString(rowVals[i])
+			sb.WriteRune('|')
+		}
+	}
+
+	r := []rune(sb.String())    // There is guaranteed to be at least one field
+	return string(r[:len(r)-1]) // Remove unnecessaru '|' at the end of the string
+}
+
+func (ps *ProjectScan) GetFields() string {
+	if _, star := ps.fields["*"]; star {
+		return ps.inputScan.GetFields()
+	}
+
+	var sb strings.Builder
+	for f := range ps.fields {
+		sb.WriteString(f)
+		sb.WriteRune('|')
+	}
+
+	r := []rune(sb.String())
+	return string(r[:len(r)-1]) // Remove unnecessaru '|' at the end of the string
+}
+
 func (ps *ProjectScan) HasColumn(colName string) bool {
-	_, ok := ps.fields[colName]
-	if ok {
+	if _, star := ps.fields["*"]; star {
+		return ps.inputScan.HasColumn(colName) // Should always be true because the planner should've checked semantic correctness
+	}
+
+	if _, ok := ps.fields[colName]; ok {
 		return ps.inputScan.HasColumn(colName) // Should always be true because the planner should've checked semantic correctness
 	}
 

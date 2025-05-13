@@ -27,43 +27,43 @@ func NewRecord(data []byte) (*Record, error) {
 			size := 2
 			num := int16(binary.BigEndian.Uint16(data[off : off+size]))
 			columns[i] = &parser.TypeDef{Type: "SMALLINT"}
-			values[i] = &parser.Constant{IntVal: int64(num)}
+			values[i] = &parser.Constant{Type: parser.IntegerToken, IntVal: int64(num)}
 			off += size
 		case SqlInt:
 			size := 4
 			num := int32(binary.BigEndian.Uint32(data[off : off+size]))
 			columns[i] = &parser.TypeDef{Type: "INT"}
-			values[i] = &parser.Constant{IntVal: int64(num)}
+			values[i] = &parser.Constant{Type: parser.IntegerToken, IntVal: int64(num)}
 			off += size
 		case SqlBigint:
 			size := 8
 			num := int64(binary.BigEndian.Uint64(data[off : off+size]))
 			columns[i] = &parser.TypeDef{Type: "BIGINT"}
-			values[i] = &parser.Constant{IntVal: int64(num)}
+			values[i] = &parser.Constant{Type: parser.IntegerToken, IntVal: int64(num)}
 			off += size
 		case SqlFloat:
 			size := 4
 			num := math.Float32frombits(binary.BigEndian.Uint32(data[off : off+size]))
 			columns[i] = &parser.TypeDef{Type: "FLOAT"}
-			values[i] = &parser.Constant{FloatVal: float64(num)}
+			values[i] = &parser.Constant{Type: parser.FloatToken, FloatVal: float64(num)}
 			off += size
 		case SqlDouble:
 			size := 8
 			num := math.Float64frombits(binary.BigEndian.Uint64(data[off : off+size]))
 			columns[i] = &parser.TypeDef{Type: "FLOAT"}
-			values[i] = &parser.Constant{FloatVal: num}
+			values[i] = &parser.Constant{Type: parser.FloatToken, FloatVal: num}
 			off += size
 		case SqlChar:
 			size := int(binary.BigEndian.Uint16(data[off : off+2]))
 			off += 2
 			columns[i] = &parser.TypeDef{Type: "CHAR", Size: size}
-			values[i] = &parser.Constant{StrVal: string(data[off : off+size])}
+			values[i] = &parser.Constant{Type: parser.StringToken, StrVal: string(data[off : off+size])}
 			off += size
 		case SqlVarchar:
 			size := int(binary.BigEndian.Uint16(data[off : off+2]))
 			off += 2
-			columns[i] = &parser.TypeDef{Type: "CHAR", Size: size}
-			values[i] = &parser.Constant{StrVal: string(data[off : off+size])}
+			columns[i] = &parser.TypeDef{Type: "VARCHAR", Size: size}
+			values[i] = &parser.Constant{Type: parser.StringToken, StrVal: string(data[off : off+size])}
 			off += size
 		default:
 			return nil, errors.New("unknown type")
