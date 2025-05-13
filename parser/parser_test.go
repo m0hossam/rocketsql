@@ -195,7 +195,7 @@ func TestParserInsert(t *testing.T) {
 			b.WriteString(constant.StrVal)
 			b.WriteString("'")
 		case IntegerToken:
-			b.WriteString(strconv.Itoa(constant.IntVal))
+			b.WriteString(strconv.FormatInt(constant.IntVal, 10))
 		case FloatToken:
 			b.WriteString(strconv.FormatFloat(constant.FloatVal, 'f', -1, 64))
 		default:
@@ -246,7 +246,7 @@ func TestParserInsertWithoutFields(t *testing.T) {
 			b.WriteString(constant.StrVal)
 			b.WriteString("'")
 		case IntegerToken:
-			b.WriteString(strconv.Itoa(constant.IntVal))
+			b.WriteString(strconv.FormatInt(constant.IntVal, 10))
 		case FloatToken:
 			b.WriteString(strconv.FormatFloat(constant.FloatVal, 'f', -1, 64))
 		default:
@@ -330,7 +330,7 @@ func TestParserUpdate(t *testing.T) {
 			b.WriteString(data.Expression.Constant.StrVal)
 			b.WriteString("'")
 		case IntegerToken:
-			b.WriteString(strconv.Itoa(data.Expression.Constant.IntVal))
+			b.WriteString(strconv.FormatInt(data.Expression.Constant.IntVal, 10))
 		case FloatToken:
 			b.WriteString(strconv.FormatFloat(data.Expression.Constant.FloatVal, 'f', -1, 64))
 		default:

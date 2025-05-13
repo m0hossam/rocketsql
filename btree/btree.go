@@ -43,7 +43,8 @@ func newBtreeIterator(pgr *pager.Pager, pg *page.Page, idx int) *BtreeIterator {
 	}
 }
 
-func (it *BtreeIterator) Next() ([]byte, bool, error) { // returns row, isNotEnd
+// returns row, isNotEnd
+func (it *BtreeIterator) Next() ([]byte, bool, error) {
 	for it.curSlot >= int(it.curPg.NumCells) {
 		if it.curPg.LastPtr == page.DbNullPage {
 			return nil, false, nil

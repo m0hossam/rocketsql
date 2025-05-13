@@ -117,7 +117,7 @@ func TestLexerNumbers(t *testing.T) {
 			t.Fatalf("Expected integer constant for input '%s'", test.input)
 		}
 		val, _ := l.eatIntConstant()
-		if val != test.expected {
+		if int(val) != test.expected {
 			t.Fatalf("Expected %d, got %d", test.expected, val)
 		}
 	}

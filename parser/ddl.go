@@ -77,7 +77,7 @@ func (p *Parser) parseTypeDef() (*TypeDef, error) {
 			return nil, err
 		}
 
-		return &TypeDef{Type: kw, Size: size}, nil
+		return &TypeDef{Type: kw, Size: int(size)}, nil
 	default:
 		return nil, errors.New("invalid syntax")
 	}

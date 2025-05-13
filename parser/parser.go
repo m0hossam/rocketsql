@@ -42,7 +42,7 @@ type Field struct {
 type Constant struct {
 	Type     TokenType
 	StrVal   string
-	IntVal   int
+	IntVal   int64
 	FloatVal float64
 }
 

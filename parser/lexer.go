@@ -24,7 +24,7 @@ const (
 
 type token struct {
 	tType     TokenType
-	intVal    int
+	intVal    int64
 	floatVal  float64
 	stringVal string
 	runeVal   rune
@@ -171,7 +171,7 @@ func (l *lexer) getNumberToken() token {
 		return token{tType: FloatToken, floatVal: floatVal}
 	}
 
-	intVal, err := strconv.Atoi(numStr)
+	intVal, err := strconv.ParseInt(numStr, 10, 64)
 	if err != nil {
 		return token{tType: InvalidToken}
 	}
@@ -268,7 +268,7 @@ func (l *lexer) eatDelim(d rune) error {
 	return l.nextToken()
 }
 
-func (l *lexer) eatIntConstant() (int, error) {
+func (l *lexer) eatIntConstant() (int64, error) {
 	if !l.matchIntConstant() {
 		return 0, errors.New("invalid syntax")
 	}

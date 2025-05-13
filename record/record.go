@@ -2,79 +2,160 @@ package record
 
 import (
 	"encoding/binary"
+	"errors"
+	"math"
+
+	"github.com/m0hossam/rocketsql/parser"
 )
 
 type Record struct {
-	nFields uint8
-	types   []DataType
-	values  []*Value
+	Columns []*parser.TypeDef
+	Values  []*parser.Constant
 }
 
-func NewRecord(data []byte) *Record {
-	nFields := data[0]
-	types := make([]DataType, nFields)
-	values := make([]*Value, nFields)
+type SerializedRecord struct {
+	Data []byte
+}
+
+func NewRecord(data []byte) (*Record, error) {
+	nFields := uint8(data[0])
+	columns := make([]*parser.TypeDef, nFields)
+	values := make([]*parser.Constant, nFields)
 	off := int(1 + nFields)
 	for i := 0; i < int(nFields); i++ {
-		var size int
-		colType := DataType(data[1+i])
+		colType := uint8(data[1+i])
 		switch colType {
 		case SqlNull:
-			size = 0
+			columns[i] = &parser.TypeDef{Type: "NULL"}
 		case SqlSmallint:
-			size = 2
+			size := 2
+			num := int16(binary.BigEndian.Uint16(data[off : off+size]))
+			columns[i] = &parser.TypeDef{Type: "SMALLINT"}
+			values[i] = &parser.Constant{IntVal: int64(num)}
+			off += size
 		case SqlInt:
-			size = 4
+			size := 4
+			num := int32(binary.BigEndian.Uint32(data[off : off+size]))
+			columns[i] = &parser.TypeDef{Type: "INT"}
+			values[i] = &parser.Constant{IntVal: int64(num)}
+			off += size
 		case SqlBigint:
-			size = 8
+			size := 8
+			num := int64(binary.BigEndian.Uint64(data[off : off+size]))
+			columns[i] = &parser.TypeDef{Type: "BIGINT"}
+			values[i] = &parser.Constant{IntVal: int64(num)}
+			off += size
 		case SqlFloat:
-			size = 4
+			size := 4
+			num := math.Float32frombits(binary.BigEndian.Uint32(data[off : off+size]))
+			columns[i] = &parser.TypeDef{Type: "FLOAT"}
+			values[i] = &parser.Constant{FloatVal: float64(num)}
+			off += size
 		case SqlDouble:
-			size = 8
+			size := 8
+			num := math.Float64frombits(binary.BigEndian.Uint64(data[off : off+size]))
+			columns[i] = &parser.TypeDef{Type: "FLOAT"}
+			values[i] = &parser.Constant{FloatVal: num}
+			off += size
 		case SqlChar:
-			size = int(binary.BigEndian.Uint16(data[off:off+2])) + 2
+			size := int(binary.BigEndian.Uint16(data[off : off+2]))
+			off += 2
+			columns[i] = &parser.TypeDef{Type: "CHAR", Size: size}
+			values[i] = &parser.Constant{StrVal: string(data[off : off+size])}
+			off += size
 		case SqlVarchar:
-			size = int(binary.BigEndian.Uint16(data[off:off+2])) + 2
+			size := int(binary.BigEndian.Uint16(data[off : off+2]))
+			off += 2
+			columns[i] = &parser.TypeDef{Type: "CHAR", Size: size}
+			values[i] = &parser.Constant{StrVal: string(data[off : off+size])}
+			off += size
 		default:
-			panic("Unknown data type")
-		}
-		types[i] = colType
-		values[i] = NewValue(data[off:off+size], colType)
-		off += size
-	}
-
-	return &Record{
-		nFields: nFields,
-		types:   types,
-		values:  values,
-	}
-}
-
-func (r *Record) Serialize() []byte {
-	nFields := int(r.nFields)
-	if (nFields != len(r.types)) || (nFields != len(r.values)) {
-		panic("Invalid record")
-	}
-
-	buf := make([]byte, 1+r.nFields)
-
-	buf[0] = r.nFields
-	for i := 0; i < nFields; i++ {
-		buf[i+1] = byte(r.types[i])
-	}
-
-	for i := 0; i < nFields; i++ {
-		if r.types[i] != SqlNull {
-			buf = append(buf, r.values[i].data...)
+			return nil, errors.New("unknown type")
 		}
 	}
-
-	return buf
+	return &Record{Columns: columns, Values: values}, nil
 }
 
-func (r *Record) GetValue(i int) *Value {
-	if i < 0 || i >= len(r.values) {
-		panic("Index out of bounds")
+func NewSerializedRecord(typeDefs []*parser.TypeDef, values []*parser.Constant) (*SerializedRecord, error) {
+	nFields := len(typeDefs)
+
+	if nFields <= 0 {
+		return nil, errors.New("no fields")
 	}
-	return r.values[i]
+	if nFields != len(values) {
+		return nil, errors.New("number of fields and values do not match")
+	}
+
+	b := make([]byte, 0)
+	b = append(b, uint8(nFields))
+
+	for _, typeDef := range typeDefs {
+		b = append(b, uint8(StringToDataType(typeDef.Type)))
+	}
+
+	i := 0
+	for _, typeDef := range typeDefs {
+		if typeDef.Type == "NULL" {
+			continue
+		}
+
+		curValue := values[i]
+		i++
+
+		switch typeDef.Type {
+		case "SMALLINT":
+			num := int16(curValue.IntVal)
+			buf := make([]byte, 2)
+			binary.BigEndian.PutUint16(buf, uint16(num))
+			b = append(b, buf...)
+		case "INT":
+			num := int32(curValue.IntVal)
+			buf := make([]byte, 4)
+			binary.BigEndian.PutUint32(buf, uint32(num))
+			b = append(b, buf...)
+		case "BIGINT":
+			num := int64(curValue.IntVal)
+			buf := make([]byte, 8)
+			binary.BigEndian.PutUint64(buf, uint64(num))
+			b = append(b, buf...)
+		case "FLOAT":
+			num := float32(curValue.FloatVal)
+			buf := make([]byte, 4)
+			bits := math.Float32bits(num)
+			binary.BigEndian.PutUint32(buf, bits)
+			b = append(b, buf...)
+		case "DOUBLE":
+			num := curValue.FloatVal
+			buf := make([]byte, 8)
+			bits := math.Float64bits(num)
+			binary.BigEndian.PutUint64(buf, bits)
+			b = append(b, buf...)
+		case "CHAR":
+			sz := uint16(typeDef.Size)
+			buf := []byte(curValue.StrVal)
+			actualSz := uint16(len(buf))
+			if actualSz > sz {
+				return nil, errors.New("char max size exceeded")
+			}
+			if actualSz < sz {
+				buf = append(buf, make([]byte, sz-actualSz)...)
+			}
+			szBuf := make([]byte, 2)
+			binary.BigEndian.PutUint16(szBuf, sz)
+			b = append(b, szBuf...)
+			b = append(b, buf...)
+		case "VARCHAR":
+			buf := []byte(curValue.StrVal)
+			sz := uint16(len(buf))
+			if sz > uint16(typeDef.Size) {
+				return nil, errors.New("varchar max size exceeded")
+			}
+			szBuf := make([]byte, 2)
+			binary.BigEndian.PutUint16(szBuf, sz)
+			b = append(b, szBuf...)
+			b = append(b, buf...)
+		}
+	}
+
+	return &SerializedRecord{Data: b}, nil
 }
