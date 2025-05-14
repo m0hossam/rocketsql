@@ -19,16 +19,20 @@ type FileManager struct {
 func NewFileManager(dbFilePath string, dbPageSize int) (*FileManager, error) {
 	fm := &FileManager{}
 
+	ext := filepath.Ext(dbFilePath)
+	if ext != ".db" {
+		return nil, errors.New("database file must end in '.db'")
+	}
+	base := filepath.Base(dbFilePath)
+	fm.dbName = base[:len(base)-len("db")]
+	fm.dbDirPath = filepath.Dir(dbFilePath)
+	fm.dbPageSize = dbPageSize
+
 	// TODO: REMOVE THE O_TRUNC AND HANDLE OPEN/CREATE DB CASES PROPERLY
 	file, err := os.OpenFile(dbFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return nil, err
 	}
-
-	base := filepath.Base(dbFilePath)
-	fm.dbName = base[:len(base)-len(Extension)]
-	fm.dbDirPath = filepath.Dir(dbFilePath)
-	fm.dbPageSize = dbPageSize
 	fm.dbFile = file
 
 	return fm, nil

@@ -15,12 +15,8 @@ func main() {
 	fmt.Println("rocketSQL> Welcome to RocketSQL")
 	fmt.Println("rocketSQL> Type '.exit' to quit")
 
-	db, err := db.NewDb("rocketsql.db")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer db.Close()
+	var rocketsql *db.Db
+	var err error
 
 	for {
 		fmt.Print("rocketSQL> ")
@@ -34,7 +30,20 @@ func main() {
 			break
 		}
 
-		rowsAffected, resultTable, err := db.ExecuteSQL(input)
+		if len(input) >= 7 {
+			if input[:6] == ".open " {
+				rocketsql, err = db.NewDb(input[6:])
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				defer rocketsql.Close()
+				fmt.Printf("Connected to database '%s'\n", input[6:])
+				continue
+			}
+		}
+
+		rowsAffected, resultTable, err := rocketsql.ExecuteSQL(input)
 		if err != nil {
 			fmt.Println(err)
 			continue
@@ -43,7 +52,7 @@ func main() {
 		if resultTable == nil {
 			fmt.Printf("%d row(s) affected\n", rowsAffected)
 		} else {
-			if err := resultTable.BeforeFirst(); err != nil {
+			if err = resultTable.BeforeFirst(); err != nil {
 				fmt.Println(err)
 				continue
 			}
@@ -65,7 +74,7 @@ func main() {
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
+	if err = scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error reading input:", err)
 	}
 }
