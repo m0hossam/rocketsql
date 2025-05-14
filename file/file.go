@@ -28,8 +28,8 @@ func NewFileManager(dbFilePath string, dbPageSize int) (*FileManager, error) {
 	fm.dbDirPath = filepath.Dir(dbFilePath)
 	fm.dbPageSize = dbPageSize
 
-	// TODO: REMOVE THE O_TRUNC AND HANDLE OPEN/CREATE DB CASES PROPERLY
-	file, err := os.OpenFile(dbFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	// TODO: HANDLE OPEN/CREATE DB CASES PROPERLY
+	file, err := os.OpenFile(dbFilePath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
 	}

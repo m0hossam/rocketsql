@@ -14,6 +14,7 @@ func main() {
 
 	fmt.Println("rocketSQL> Welcome to RocketSQL")
 	fmt.Println("rocketSQL> Type '.exit' to quit")
+	fmt.Println("rocketSQL> Type '.open smth.db' to open/create a database")
 
 	var rocketsql *db.Db
 	var err error
@@ -41,6 +42,11 @@ func main() {
 				fmt.Printf("Connected to database '%s'\n", input[6:])
 				continue
 			}
+		}
+
+		if rocketsql == nil {
+			fmt.Println("rocketSQL> Type '.open smth.db' to open/create a database")
+			continue
 		}
 
 		rowsAffected, resultTable, err := rocketsql.ExecuteSQL(input)
