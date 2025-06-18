@@ -24,33 +24,13 @@ func NewPager(dbFilePath string) (*Pager, error) {
 	}
 	num32u := uint32(num64)
 
+	if num32u != 0 { // Not a new database
+		num32u++
+	}
+
 	pgr := &Pager{
 		fileManager: fm,
 		newPgPtr:    &num32u,
-	}
-
-	if *pgr.newPgPtr == 0 { // new database
-		*pgr.newPgPtr = 1
-
-		pg1, err := page.NewPage(page.LeafPage, pgr.newPgPtr) // schema table
-		if err != nil {
-			return nil, err
-		}
-
-		err = pgr.AppendPage(pg1)
-		if err != nil {
-			return nil, err
-		}
-
-		pg2, err := page.NewPage(page.LeafPage, pgr.newPgPtr) // auto-inc table
-		if err != nil {
-			return nil, err
-		}
-
-		err = pgr.AppendPage(pg2)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	return pgr, nil
@@ -90,4 +70,8 @@ func (pgr *Pager) Close() error {
 
 func (pgr *Pager) GetNewPagePtr() *uint32 {
 	return pgr.newPgPtr
+}
+
+func (pgr *Pager) IncNewPagePtr() {
+	*pgr.newPgPtr++
 }

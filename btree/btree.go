@@ -5,6 +5,7 @@ import (
 
 	"github.com/m0hossam/rocketsql/page"
 	"github.com/m0hossam/rocketsql/pager"
+	"github.com/m0hossam/rocketsql/parser"
 	"github.com/m0hossam/rocketsql/record"
 )
 
@@ -30,9 +31,52 @@ func NewBtree(dbFilePath string) (*Btree, error) {
 		return nil, err
 	}
 
-	return &Btree{
+	btree := &Btree{
 		pgr: pgr,
-	}, nil
+	}
+
+	if *pgr.GetNewPagePtr() == 0 { // New database
+		// Create rocketsql_schema table
+		pgr.IncNewPagePtr()
+		pg1, err := page.NewPage(page.LeafPage, pgr.GetNewPagePtr())
+		if err != nil {
+			return nil, err
+		}
+		if err = pgr.AppendPage(pg1); err != nil {
+			return nil, err
+		}
+
+		// Insert schema_table data into schema_table
+		keyRec := &record.Record{
+			Columns: []*parser.TypeDef{{Type: "VARCHAR", Size: 255}},
+			Values:  []*parser.Constant{{Type: parser.StringToken, StrVal: "rocketsql_schema"}},
+		}
+		valueRec := &record.Record{
+			Columns: []*parser.TypeDef{
+				{Type: "VARCHAR", Size: 255},
+				{Type: "INT"},
+				{Type: "VARCHAR", Size: 255}},
+			Values: []*parser.Constant{
+				{Type: parser.StringToken, StrVal: "rocketsql_schema"},
+				{Type: parser.IntegerToken, IntVal: 1},
+				{Type: parser.StringToken, StrVal: "CREATE TABLE rocketsql_schema (table_name VARCHAR(255), root_page_no INT, table_schema VARCHAR(255))"}},
+		}
+
+		key, err := keyRec.Serialize()
+		if err != nil {
+			return nil, err
+		}
+		value, err := valueRec.Serialize()
+		if err != nil {
+			return nil, err
+		}
+
+		if err = btree.Insert(1, key, value); err != nil {
+			return nil, err
+		}
+	}
+
+	return btree, nil
 }
 
 func newBtreeIterator(pgr *pager.Pager, pg *page.Page, idx int) *BtreeIterator {
