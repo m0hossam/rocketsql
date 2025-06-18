@@ -7,21 +7,19 @@ import (
 )
 
 type Db struct {
-	dbFilePath string
-	btree      *btree.Btree
-	processor  *processor.Processor
+	btree     *btree.Btree
+	processor *processor.Processor
 }
 
-func NewDb(dbFilePath string) (*Db, error) {
-	btree, err := btree.NewBtree(dbFilePath)
+func NewDb() (*Db, error) {
+	btree, err := btree.NewBtree()
 	if err != nil {
 		return nil, err
 	}
 
 	return &Db{
-		dbFilePath: dbFilePath,
-		btree:      btree,
-		processor:  processor.NewProcessor(btree),
+		btree:     btree,
+		processor: processor.NewProcessor(btree),
 	}, nil
 }
 

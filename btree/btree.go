@@ -25,8 +25,8 @@ type Btree struct {
 	pgr *pager.Pager
 }
 
-func NewBtree(dbFilePath string) (*Btree, error) {
-	pgr, err := pager.NewPager(dbFilePath)
+func NewBtree() (*Btree, error) {
+	pgr, err := pager.NewPager()
 	if err != nil {
 		return nil, err
 	}

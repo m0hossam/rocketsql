@@ -3,68 +3,56 @@ package pager
 import (
 	"errors"
 
-	"github.com/m0hossam/rocketsql/file"
 	"github.com/m0hossam/rocketsql/page"
 )
 
 type Pager struct {
-	fileManager *file.FileManager
-	newPgPtr    *uint32
+	pageBuffer []byte
+	newPgPtr   *uint32
 }
 
-func NewPager(dbFilePath string) (*Pager, error) {
-	fm, err := file.NewFileManager(dbFilePath, page.DefaultPageSize)
-	if err != nil {
-		return nil, err
-	}
-
-	num64, err := fm.GetNumberOfPages()
-	if err != nil {
-		return nil, err
-	}
-	num32u := uint32(num64)
-
-	if num32u != 0 { // Not a new database
-		num32u++
-	}
+func NewPager() (*Pager, error) {
+	num32u := uint32(0) // Indicates new DB, will be incremented by B-Tree module before creating the schema table
 
 	pgr := &Pager{
-		fileManager: fm,
-		newPgPtr:    &num32u,
+		pageBuffer: make([]byte, 0, 4096),
+		newPgPtr:   &num32u,
 	}
 
 	return pgr, nil
 }
 
 func (pgr *Pager) ReadPage(ptr uint32) (*page.Page, error) {
-	if ptr == 0 { // pages are numbered starting from 1, 0 is reserved for null pages
+	if ptr == 0 { // Pages are numbered starting from 1, 0 is reserved for null pages
 		return nil, errors.New("page numbers start from 1")
 	}
 
-	off := int64((ptr - 1) * page.DefaultPageSize)
-	data, err := pgr.fileManager.Read(off)
-	if err != nil {
-		return nil, err
+	off := (ptr - 1) * page.DefaultPageSize
+	end := off + page.DefaultPageSize
+
+	if int(end) > len(pgr.pageBuffer) {
+		return nil, errors.New("page number exceeding file range")
 	}
 
-	return page.DeserializePage(ptr, data), nil
+	return page.DeserializePage(ptr, pgr.pageBuffer[off:off+end]), nil
 }
 
 func (pgr *Pager) AppendPage(pg *page.Page) error {
 	data := pg.SerializePage()
-	return pgr.fileManager.Append(data)
+	pgr.pageBuffer = append(pgr.pageBuffer, data...)
+	return nil
 }
 
 func (pgr *Pager) WritePage(pg *page.Page) error {
 	data := pg.SerializePage()
-	off := int64((pg.Id - 1) * page.DefaultPageSize)
-	return pgr.fileManager.Write(off, data)
+	off := (pg.Id - 1) * page.DefaultPageSize
+	end := off + page.DefaultPageSize
+	copy(pgr.pageBuffer[off:off+end], data)
+	return nil
 }
 
 func (pgr *Pager) Close() error {
-	if pgr.fileManager != nil {
-		return pgr.fileManager.Close()
-	}
+	pgr.pageBuffer = nil
 	return nil
 }
 

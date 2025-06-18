@@ -13,11 +13,15 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 
 	fmt.Println("rocketSQL> Welcome to RocketSQL")
+	fmt.Println("rocketSQL> You are connected to an in-memory database")
 	fmt.Println("rocketSQL> Type '.exit' to quit")
-	fmt.Println("rocketSQL> Type '.open smth.db' to open/create a database")
 
-	var rocketsql *db.Db
-	var err error
+	rocketsql, err := db.NewDb()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer rocketsql.Close()
 
 	for {
 		fmt.Print("rocketSQL> ")
@@ -29,29 +33,6 @@ func main() {
 
 		if input == ".exit" {
 			break
-		}
-
-		if len(input) >= 7 {
-			if input[:6] == ".open " {
-				if rocketsql != nil {
-					if err = rocketsql.Close(); err != nil {
-						fmt.Println(err)
-						continue
-					}
-				}
-				rocketsql, err = db.NewDb(input[6:])
-				if err != nil {
-					fmt.Println(err)
-					continue
-				}
-				fmt.Printf("Connected to database '%s'\n", input[6:])
-				continue
-			}
-		}
-
-		if rocketsql == nil {
-			fmt.Println("rocketSQL> Type '.open dbname' to create/reopen a database")
-			continue
 		}
 
 		rowsAffected, resultTable, err := rocketsql.ExecuteSQL(input)
@@ -82,12 +63,6 @@ func main() {
 
 				fmt.Println(resultTable.GetRow())
 			}
-		}
-	}
-
-	if rocketsql != nil {
-		if err = rocketsql.Close(); err != nil {
-			fmt.Println(err)
 		}
 	}
 
