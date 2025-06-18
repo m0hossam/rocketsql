@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 )
 
-const Extension = ".rocketsql"
-
 type FileManager struct {
 	dbName     string
 	dbDirPath  string
@@ -19,16 +17,10 @@ type FileManager struct {
 func NewFileManager(dbFilePath string, dbPageSize int) (*FileManager, error) {
 	fm := &FileManager{}
 
-	ext := filepath.Ext(dbFilePath)
-	if ext != ".db" {
-		return nil, errors.New("database file must end in '.db'")
-	}
-	base := filepath.Base(dbFilePath)
-	fm.dbName = base[:len(base)-len("db")]
+	fm.dbName = filepath.Base(dbFilePath)
 	fm.dbDirPath = filepath.Dir(dbFilePath)
 	fm.dbPageSize = dbPageSize
 
-	// TODO: HANDLE OPEN/CREATE DB CASES PROPERLY
 	file, err := os.OpenFile(dbFilePath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err

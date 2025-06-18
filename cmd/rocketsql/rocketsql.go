@@ -45,7 +45,7 @@ func main() {
 		}
 
 		if rocketsql == nil {
-			fmt.Println("rocketSQL> Type '.open smth.db' to open/create a database")
+			fmt.Println("rocketSQL> Type '.open dbname' to create/reopen a database")
 			continue
 		}
 
