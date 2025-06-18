@@ -33,12 +33,17 @@ func main() {
 
 		if len(input) >= 7 {
 			if input[:6] == ".open " {
+				if rocketsql != nil {
+					if err = rocketsql.Close(); err != nil {
+						fmt.Println(err)
+						continue
+					}
+				}
 				rocketsql, err = db.NewDb(input[6:])
 				if err != nil {
 					fmt.Println(err)
 					continue
 				}
-				defer rocketsql.Close()
 				fmt.Printf("Connected to database '%s'\n", input[6:])
 				continue
 			}
@@ -77,6 +82,12 @@ func main() {
 
 				fmt.Println(resultTable.GetRow())
 			}
+		}
+	}
+
+	if rocketsql != nil {
+		if err = rocketsql.Close(); err != nil {
+			fmt.Println(err)
 		}
 	}
 
