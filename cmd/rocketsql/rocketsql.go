@@ -19,18 +19,21 @@ func main() {
 	var rocketsql *db.Db
 	var err error
 
+	// REPL: (Read - Eval - Print) Loop
 	for {
+		// Get input
 		fmt.Print("rocketSQL> ")
-
 		if !scanner.Scan() {
 			break
 		}
 		input := strings.TrimSpace(scanner.Text())
 
+		// Quitting (meta-command)
 		if input == ".exit" {
 			break
 		}
 
+		// Opening a DB (meta-command)
 		if len(input) >= 7 {
 			if input[:6] == ".open " {
 				if rocketsql != nil {
@@ -49,20 +52,31 @@ func main() {
 			}
 		}
 
+		// Ensure we are connected to a DB before executing SQL or meta-commands
 		if rocketsql == nil {
 			fmt.Println("rocketSQL> Type '.open dbname' to create/reopen a database")
 			continue
 		}
 
+		// Other meta-commands
+		if len(input) >= 1 {
+			if input[0] == '.' {
+				fmt.Println(rocketsql.ExecuteMetaCommand(input))
+				continue
+			}
+		}
+
+		// Execute SQL
 		rowsAffected, resultTable, err := rocketsql.ExecuteSQL(input)
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
 
-		if resultTable == nil {
+		// Print results of SQL
+		if resultTable == nil { // DML, DDL
 			fmt.Printf("%d row(s) affected\n", rowsAffected)
-		} else {
+		} else { // Queries
 			if err = resultTable.BeforeFirst(); err != nil {
 				fmt.Println(err)
 				continue

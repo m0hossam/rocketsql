@@ -101,3 +101,17 @@ func (fm *FileManager) GetNumberOfPages() (int64, error) {
 	numPages := size / int64(fm.dbPageSize)
 	return numPages, nil
 }
+
+func (fm *FileManager) WriteTo(filePath string, fileContent string) error {
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	if _, err = file.WriteString(fileContent); err != nil {
+		return err
+	}
+
+	return file.Sync() // Ensure contents are flushed to disk
+}

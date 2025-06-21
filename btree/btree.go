@@ -630,13 +630,21 @@ func (btree *Btree) Delete(rootPgNo uint32, key []byte) error {
 	return nil
 }
 
+func (btree *Btree) GetNewPagePtr() *uint32 {
+	return btree.pgr.GetNewPagePtr()
+}
+
+func (btree *Btree) DumpBTree(tblName string, rootPgNo uint32) string {
+	return btree.pgr.DumpTable(tblName, rootPgNo)
+}
+
+func (btree *Btree) DumpBTreePage(pgNo uint32) string {
+	return btree.pgr.DumpPage(pgNo)
+}
+
 func (btree *Btree) Close() error {
 	if btree.pgr != nil {
 		return btree.pgr.Close()
 	}
 	return nil
-}
-
-func (btree *Btree) GetNewPagePtr() *uint32 {
-	return btree.pgr.GetNewPagePtr()
 }
