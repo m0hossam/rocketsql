@@ -1,15 +1,12 @@
 package pager
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/m0hossam/rocketsql/file"
 	"github.com/m0hossam/rocketsql/page"
-	"github.com/m0hossam/rocketsql/parser"
 	"github.com/m0hossam/rocketsql/record"
 )
 
@@ -104,7 +101,7 @@ func (pgr *Pager) DumpTable(tblName string, rootPgNo uint32) string {
 			dumpPage(pg, sb)
 			if pg.Type == page.InteriorPage {
 				for i := 0; i < len(pg.CellPtrArr); i++ {
-					q = append(q, binary.BigEndian.Uint32(pg.Cells[pg.CellPtrArr[i]].Value)) // enqueue children
+					q = append(q, page.BytesToUint32(pg.Cells[pg.CellPtrArr[i]].Value)) // enqueue children
 				}
 				q = append(q, pg.LastPtr)
 			}
@@ -156,13 +153,13 @@ func dumpPage(pg *page.Page, sb *strings.Builder) {
 		fmt.Fprintf(sb, "\tCell[%d]:\n", i)
 		size := 2 + len(c.Key) + len(c.Value)
 		if pg.Type == page.InteriorPage {
-			fmt.Fprintf(sb, "\t\tPtr: %d\n", binary.BigEndian.Uint32(c.Value))
+			fmt.Fprintf(sb, "\t\tPtr: %d\n", page.BytesToUint32(c.Value))
 		}
 		keyRec, _ := record.NewRecord(c.Key)
-		fmt.Fprintf(sb, "\t\tKey: %s\n", getRow(keyRec))
+		fmt.Fprintf(sb, "\t\tKey: %s\n", keyRec.ToString())
 		if pg.Type == page.LeafPage {
 			valRec, _ := record.NewRecord(c.Value)
-			fmt.Fprintf(sb, "\t\tRow: %s\n", getRow(valRec))
+			fmt.Fprintf(sb, "\t\tRow: %s\n", valRec.ToString())
 			size += 2
 		}
 		fmt.Fprintf(sb, "\t\tStart: %d\n", pg.CellPtrArr[i])
@@ -171,27 +168,4 @@ func dumpPage(pg *page.Page, sb *strings.Builder) {
 
 	}
 	fmt.Fprintf(sb, "Rightmost Ptr: %d\n", pg.LastPtr)
-}
-
-func getRow(rec *record.Record) string {
-	var sb strings.Builder
-
-	for i, val := range rec.Values {
-		if i != 0 {
-			sb.WriteString("|")
-		}
-
-		switch val.Type {
-		case parser.IntegerToken:
-			sb.WriteString(strconv.FormatInt(val.IntVal, 10))
-		case parser.FloatToken:
-			sb.WriteString(strconv.FormatFloat(val.FloatVal, 'f', 2, 64))
-		case parser.StringToken:
-			sb.WriteString(val.StrVal)
-		default:
-			return ""
-		}
-	}
-
-	return sb.String()
 }

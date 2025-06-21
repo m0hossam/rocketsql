@@ -328,7 +328,7 @@ func (btree *Btree) getPath(key []byte, root *page.Page) []uint32 { // returns p
 			ptr = cur.LastPtr
 		} else {
 			c := cur.Cells[cur.CellPtrArr[ind]]
-			ptr = page.DeserializePtr(c.Value)
+			ptr = page.BytesToUint32(c.Value)
 		}
 
 		var err error
@@ -347,7 +347,7 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 	}
 
 	if len(path) == 0 { // creating new root
-		rootPgNo := page.DeserializePtr(value)
+		rootPgNo := page.BytesToUint32(value)
 		rootPg, err := btree.pgr.ReadPage(rootPgNo)
 		if err != nil {
 			return err
@@ -360,7 +360,7 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 
 		newCell := page.Cell{
 			Key:   key,
-			Value: page.SerializePtr(newPg.Id), // because value will point to the root
+			Value: page.Uint32ToBytes(newPg.Id), // because value will point to the root
 		}
 
 		rootPg.CopyTo(newPg)
@@ -397,7 +397,7 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 		pg.LastPtr = newChild
 	} else {
 		c := pg.Cells[pg.CellPtrArr[ind]]
-		c.Value = page.SerializePtr(newChild)
+		c.Value = page.Uint32ToBytes(newChild)
 		pg.Cells[pg.CellPtrArr[ind]] = c
 	}
 	err = insertIntoPage(pg, newCell, ind)
@@ -415,7 +415,7 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 	newPg.LastPtr = newChild
 
 	pg.Truncate()
-	pg.LastPtr = page.DeserializePtr(cells[mid].Value)
+	pg.LastPtr = page.BytesToUint32(cells[mid].Value)
 
 	for i := 0; i < mid; i++ {
 		err = insertIntoPage(pg, cells[i], i)
@@ -439,7 +439,7 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 		return err
 	}
 
-	err = btree.interiorInsert(path[:len(path)-1], cells[mid].Key, page.SerializePtr(pg.Id), newPg.Id, newPgPtr)
+	err = btree.interiorInsert(path[:len(path)-1], cells[mid].Key, page.Uint32ToBytes(pg.Id), newPg.Id, newPgPtr)
 	if err != nil {
 		return err
 	}
@@ -471,7 +471,7 @@ func (btree *Btree) First(rootPgNo uint32) (*BtreeIterator, error) {
 	}
 
 	for rootPg.Type != page.LeafPage {
-		ptr := page.DeserializePtr(rootPg.Cells[rootPg.CellPtrArr[0]].Value)
+		ptr := page.BytesToUint32(rootPg.Cells[rootPg.CellPtrArr[0]].Value)
 		pg, err := btree.pgr.ReadPage(ptr)
 		if err != nil {
 			return nil, err
@@ -576,7 +576,7 @@ func (btree *Btree) Insert(rootPgNo uint32, key []byte, value []byte) error {
 		return err
 	}
 
-	err = btree.interiorInsert(path[:len(path)-1], newPg.Cells[newPg.CellPtrArr[0]].Key, page.SerializePtr(pg.Id), newPg.Id, btree.pgr.GetNewPagePtr())
+	err = btree.interiorInsert(path[:len(path)-1], newPg.Cells[newPg.CellPtrArr[0]].Key, page.Uint32ToBytes(pg.Id), newPg.Id, btree.pgr.GetNewPagePtr())
 	if err != nil {
 		return err
 	}

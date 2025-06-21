@@ -105,12 +105,12 @@ func DeserializePage(ptr uint32, b []byte) *Page {
 	return p
 }
 
-func SerializePtr(ptr uint32) []byte {
+func Uint32ToBytes(ptr uint32) []byte {
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, ptr)
 	return b
 }
 
-func DeserializePtr(b []byte) uint32 {
+func BytesToUint32(b []byte) uint32 {
 	return binary.BigEndian.Uint32(b)
 }

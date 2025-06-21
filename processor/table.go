@@ -2,7 +2,6 @@ package processor
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 
 	"github.com/m0hossam/rocketsql/btree"
@@ -145,26 +144,7 @@ func (ts *TableScan) GetType(colName string) (string, error) {
 }
 
 func (ts *TableScan) GetRow() string {
-	var sb strings.Builder
-
-	for i, val := range ts.curRecord.Values {
-		if i != 0 {
-			sb.WriteString("|")
-		}
-
-		switch val.Type {
-		case parser.IntegerToken:
-			sb.WriteString(strconv.FormatInt(val.IntVal, 10))
-		case parser.FloatToken:
-			sb.WriteString(strconv.FormatFloat(val.FloatVal, 'f', 2, 64))
-		case parser.StringToken:
-			sb.WriteString(val.StrVal)
-		default:
-			return ""
-		}
-	}
-
-	return sb.String()
+	return ts.curRecord.ToString()
 }
 
 func (ts *TableScan) GetFields() string {

@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"math"
+	"strconv"
+	"strings"
 
 	"github.com/m0hossam/rocketsql/parser"
 )
@@ -154,4 +156,27 @@ func (r *Record) Serialize() ([]byte, error) {
 	}
 
 	return b, nil
+}
+
+func (r *Record) ToString() string {
+	var sb strings.Builder
+
+	for i, val := range r.Values {
+		if i != 0 {
+			sb.WriteString("|")
+		}
+
+		switch val.Type {
+		case parser.IntegerToken:
+			sb.WriteString(strconv.FormatInt(val.IntVal, 10))
+		case parser.FloatToken:
+			sb.WriteString(strconv.FormatFloat(val.FloatVal, 'f', 2, 64))
+		case parser.StringToken:
+			sb.WriteString(val.StrVal)
+		default:
+			return ""
+		}
+	}
+
+	return sb.String()
 }
