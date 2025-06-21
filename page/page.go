@@ -9,11 +9,21 @@ var (
 	MaxCellsPerPage uint16 = 3 // for testing purposes (TODO: REMOVE THIS)
 )
 
+const ( // database header constants
+	DbHeaderSize           = 12
+	OffsetOfDbNumPages     = 0
+	OffsetOfDbFreePage     = 4
+	OffsetOfDbNumFreePages = 8
+	SizeOfDbNumPages       = 4
+	SizeOfDbFreePage       = 4
+	SizeOfDbNumFreePages   = 4
+)
+
 const ( // database constants
 	DefaultPageSize         = 512 // default is 4096 but can be any power of two between 512 and 65536 (TODO: CHANGE THIS)
-	HeaderSize              = 12
+	PageHeaderSize          = 12
 	MinCellsPerPage         = 2 // should be atleat 2 to avoid insertion corner cases
-	MaxCellSize             = (DefaultPageSize - HeaderSize - MinCellsPerPage*SizeOfCellOff) / MinCellsPerPage
+	MaxCellSize             = (DefaultPageSize - PageHeaderSize - MinCellsPerPage*SizeOfCellOff) / MinCellsPerPage
 	MinFreeBlockSize        = 4
 	DbNullPage       uint32 = 0
 )
@@ -62,6 +72,12 @@ type FreeBlock struct {
 type Cell struct {
 	Key   []byte
 	Value []byte
+}
+
+type DbHeader struct {
+	NumPages      uint32
+	FirstFreePage uint32
+	NumFreePages  uint32
 }
 
 type Page struct {

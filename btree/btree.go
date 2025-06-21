@@ -35,9 +35,8 @@ func NewBtree(dbFilePath string) (*Btree, error) {
 		pgr: pgr,
 	}
 
-	if *pgr.GetNewPagePtr() == 0 { // New database
+	if pgr.GetDbHeader().NumPages == 0 { // New database
 		// Create rocketsql_schema table
-		pgr.IncNewPagePtr()
 		pg1, err := page.NewPage(page.LeafPage, pgr.GetNewPagePtr())
 		if err != nil {
 			return nil, err

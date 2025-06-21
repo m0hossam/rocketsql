@@ -20,7 +20,7 @@ func (pg *Page) SerializePage() []byte {
 	for _, off := range pg.CellPtrArr {
 		binary.Write(buf, binary.BigEndian, off)
 	}
-	binary.Write(buf, binary.BigEndian, bytes.Repeat([]byte{0}, int(DefaultPageSize-HeaderSize-SizeOfCellOff*pg.NumCells)))
+	binary.Write(buf, binary.BigEndian, bytes.Repeat([]byte{0}, int(DefaultPageSize-PageHeaderSize-SizeOfCellOff*pg.NumCells)))
 
 	b := buf.Bytes()
 
@@ -113,4 +113,20 @@ func Uint32ToBytes(ptr uint32) []byte {
 
 func BytesToUint32(b []byte) uint32 {
 	return binary.BigEndian.Uint32(b)
+}
+
+func (hdr *DbHeader) SerializeDbHeader() []byte {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, binary.BigEndian, hdr.NumPages)
+	binary.Write(buf, binary.BigEndian, hdr.FirstFreePage)
+	binary.Write(buf, binary.BigEndian, hdr.NumFreePages)
+	return buf.Bytes()
+}
+
+func DeserializeDbHeader(b []byte) *DbHeader {
+	return &DbHeader{
+		NumPages:      BytesToUint32(b[OffsetOfDbNumPages : OffsetOfDbNumPages+SizeOfDbNumPages]),
+		FirstFreePage: BytesToUint32(b[OffsetOfDbFreePage : OffsetOfDbFreePage+SizeOfDbFreePage]),
+		NumFreePages:  BytesToUint32(b[OffsetOfDbNumFreePages : OffsetOfDbNumFreePages+SizeOfDbNumFreePages]),
+	}
 }

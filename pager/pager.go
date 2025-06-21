@@ -11,29 +11,30 @@ import (
 )
 
 type Pager struct {
+	dbHeader    *page.DbHeader
 	fileManager *file.FileManager
 	newPgPtr    *uint32
 }
 
 func NewPager(dbFilePath string) (*Pager, error) {
-	fm, err := file.NewFileManager(dbFilePath, page.DefaultPageSize)
+	fm, err := file.NewFileManager(dbFilePath, page.DefaultPageSize, page.DbHeaderSize)
 	if err != nil {
 		return nil, err
 	}
 
-	num64, err := fm.GetNumberOfPages()
+	// Load DB Header
+	hdrBytes, err := fm.Read(0, page.DbHeaderSize)
 	if err != nil {
 		return nil, err
 	}
-	num32u := uint32(num64)
+	hdr := page.DeserializeDbHeader(hdrBytes)
 
-	if num32u != 0 { // Not a new database
-		num32u++
-	}
+	newPgPtr := uint32(hdr.NumPages + 1)
 
 	pgr := &Pager{
+		dbHeader:    hdr,
 		fileManager: fm,
-		newPgPtr:    &num32u,
+		newPgPtr:    &newPgPtr,
 	}
 
 	return pgr, nil
@@ -44,8 +45,8 @@ func (pgr *Pager) ReadPage(ptr uint32) (*page.Page, error) {
 		return nil, errors.New("page numbers start from 1")
 	}
 
-	off := int64((ptr - 1) * page.DefaultPageSize)
-	data, err := pgr.fileManager.Read(off)
+	off := int64((ptr-1)*page.DefaultPageSize + page.DbHeaderSize)
+	data, err := pgr.fileManager.Read(off, page.DefaultPageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -55,28 +56,25 @@ func (pgr *Pager) ReadPage(ptr uint32) (*page.Page, error) {
 
 func (pgr *Pager) AppendPage(pg *page.Page) error {
 	data := pg.SerializePage()
-	return pgr.fileManager.Append(data)
+	if err := pgr.fileManager.Append(data); err != nil {
+		return err
+	}
+	pgr.dbHeader.NumPages++
+	return nil
 }
 
 func (pgr *Pager) WritePage(pg *page.Page) error {
 	data := pg.SerializePage()
-	off := int64((pg.Id - 1) * page.DefaultPageSize)
+	off := int64((pg.Id-1)*page.DefaultPageSize + page.DbHeaderSize)
 	return pgr.fileManager.Write(off, data)
-}
-
-func (pgr *Pager) Close() error {
-	if pgr.fileManager != nil {
-		return pgr.fileManager.Close()
-	}
-	return nil
 }
 
 func (pgr *Pager) GetNewPagePtr() *uint32 {
 	return pgr.newPgPtr
 }
 
-func (pgr *Pager) IncNewPagePtr() {
-	*pgr.newPgPtr++
+func (pgr *Pager) GetDbHeader() *page.DbHeader {
+	return pgr.dbHeader
 }
 
 func (pgr *Pager) DumpTable(tblName string, rootPgNo uint32) string {
@@ -109,7 +107,7 @@ func (pgr *Pager) DumpTable(tblName string, rootPgNo uint32) string {
 		level++
 	}
 
-	if err := pgr.fileManager.WriteTo(fmt.Sprintf("table_%s_dump.txt", tblName), sb.String()); err != nil {
+	if err := file.WriteStringToFile(fmt.Sprintf("table_%s_dump.txt", tblName), sb.String()); err != nil {
 		return err.Error()
 	}
 	return fmt.Sprintf("Table '%s' dumped to 'table_%s_dump.txt'", tblName, tblName)
@@ -124,7 +122,7 @@ func (pgr *Pager) DumpPage(pageNo uint32) string {
 	}
 	dumpPage(pg, sb)
 
-	if err := pgr.fileManager.WriteTo(fmt.Sprintf("page_%d_dump.txt", pageNo), sb.String()); err != nil {
+	if err := file.WriteStringToFile(fmt.Sprintf("page_%d_dump.txt", pageNo), sb.String()); err != nil {
 		return err.Error()
 	}
 
@@ -168,4 +166,16 @@ func dumpPage(pg *page.Page, sb *strings.Builder) {
 
 	}
 	fmt.Fprintf(sb, "Rightmost Ptr: %d\n", pg.LastPtr)
+}
+
+func (pgr *Pager) Close() error {
+	hdr := pgr.dbHeader.SerializeDbHeader()
+	if pgr.fileManager != nil {
+		// Flush DB header to disk
+		if err := pgr.fileManager.Write(0, hdr); err != nil {
+			return err
+		}
+		return pgr.fileManager.Close()
+	}
+	return nil
 }
