@@ -650,10 +650,6 @@ func (btree *Btree) DeleteTree(rootPgNo uint32) (int, error) {
 	return numRows, nil
 }
 
-func (btree *Btree) GetNewPagePtr() *uint32 {
-	return btree.pgr.GetNewPagePtr()
-}
-
 func (btree *Btree) DumpBTree(tblName string, rootPgNo uint32) string {
 	return btree.pgr.DumpTable(tblName, rootPgNo)
 }

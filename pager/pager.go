@@ -116,10 +116,6 @@ func (pgr *Pager) FreePage(pgNo uint32) error {
 	return pgr.WritePage(pg) // Flush page to disk
 }
 
-func (pgr *Pager) GetNewPagePtr() *uint32 {
-	return pgr.newPgPtr
-}
-
 func (pgr *Pager) GetDbHeader() *page.DbHeader {
 	return pgr.dbHeader
 }
