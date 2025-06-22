@@ -34,6 +34,9 @@ func (p *Processor) ExecuteSQL(parseTree *parser.ParseTree) (int, Scan, error) {
 		return 1, nil, nil
 	case parser.CreateTableTree:
 		return 0, nil, p.ExecuteCreateTable(parseTree.CreateTableData)
+	case parser.DropTableTree:
+		rows, err := p.ExecuteDropTable(parseTree.DropTableData)
+		return rows, nil, err
 	case parser.DeleteTree:
 		rows, err := p.ExecuteDelete(parseTree.DeleteData)
 		return rows, nil, err
@@ -202,21 +205,52 @@ func (p *Processor) ExecuteInsert(insertData *parser.InsertData) error {
 }
 
 func (p *Processor) ExecuteCreateTable(tableData *parser.CreateTableData) error {
-	newPgNo := p.btree.GetNewPagePtr()
+	// Allocate a root page for the new table
+	rootPgNo, err := p.btree.Create()
+	if err != nil {
+		return err
+	}
 
+	// Get the serialized name/schema of the new table
 	keyRec := record.NewSchemaKeyRecord(tableData.TableName)
 	key, err := keyRec.Serialize()
 	if err != nil {
 		return err
 	}
-
-	valueRec := record.NewSchemaValueRecord(tableData.TableName, int(*newPgNo), tableData.SchemaSql)
+	valueRec := record.NewSchemaValueRecord(tableData.TableName, int(rootPgNo), tableData.SchemaSql)
 	value, err := valueRec.Serialize()
 	if err != nil {
 		return err
 	}
 
-	return p.btree.Create(key, value)
+	// Insert the serialized name/schema into the schema table
+	return p.btree.Insert(1, key, value)
+}
+
+func (p *Processor) ExecuteDropTable(tableData *parser.DropTableData) (int, error) {
+	// Get metadata to get the root page no. of the table
+	metadata, err := p.tblManager.GetTableMetadata(tableData.TableName)
+	if err != nil {
+		return 0, err
+	}
+
+	// Drop table
+	rowsAffected, err := p.btree.DeleteTree(metadata.RootPageNo)
+	if err != nil {
+		return 0, err
+	}
+
+	// Remove table from the schema table
+	key, err := record.NewSchemaKeyRecord(tableData.TableName).Serialize()
+	if err != nil {
+		return 0, err
+	}
+
+	if err = p.btree.Delete(1, key); err != nil {
+		return 0, err
+	}
+
+	return rowsAffected, nil
 }
 
 func (p *Processor) ExecuteQuery(query *parser.Query) (Scan, error) {

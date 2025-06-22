@@ -113,7 +113,7 @@ func (pgr *Pager) FreePage(pgNo uint32) error {
 	pg.LastPtr = pgr.dbHeader.FirstFreePage // Store the next free page no. in this page's rightmost pointer
 	pgr.dbHeader.FirstFreePage = pgNo
 	pgr.dbHeader.NumFreePages++
-	return nil
+	return pgr.WritePage(pg) // Flush page to disk
 }
 
 func (pgr *Pager) GetNewPagePtr() *uint32 {

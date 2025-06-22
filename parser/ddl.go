@@ -25,6 +25,11 @@ type CreateTableData struct {
 	SchemaSql string
 }
 
+// <DropTable> := DROP TABLE IdTok
+type DropTableData struct {
+	TableName string
+}
+
 func (p *Parser) parseTypeDef() (*TypeDef, error) {
 	switch {
 	case p.lexer.matchKeyword("SMALLINT"):
@@ -180,4 +185,23 @@ func getSqlSchema(tblName string, fieldDefs []*FieldDef) string {
 	b.WriteString(")")
 
 	return b.String()
+}
+
+func (p *Parser) parseDropTable() (*DropTableData, error) {
+	if err := p.lexer.eatKeyword("DROP"); err != nil {
+		return nil, err
+	}
+
+	if err := p.lexer.eatKeyword("TABLE"); err != nil {
+		return nil, err
+	}
+
+	tableName, err := p.lexer.eatIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	return &DropTableData{
+		TableName: tableName,
+	}, nil
 }

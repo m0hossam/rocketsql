@@ -24,9 +24,10 @@ import (
 
 <Update> := UPDATE IdTok SET <Field> = <Constant> [ WHERE <Predicate> ]
 
-<DDL> := <CreateTable>
+<DDL> := <CreateTable> | <DropTable>
 
 <CreateTable> := CREATE TABLE IdTok ( <FieldDefs> )
+<DropTable> := DROP TABLE IdTok
 
 <FieldDefs> := <FieldDef> [ , <FieldDefs> ]
 <FieldDef> := IdTok <TypeDef>
@@ -75,12 +76,14 @@ const (
 	DeleteTree
 	UpdateTree
 	CreateTableTree
+	DropTableTree
 )
 
 type ParseTree struct {
 	Type            ParseTreeType
 	Query           *Query
 	CreateTableData *CreateTableData
+	DropTableData   *DropTableData
 	InsertData      *InsertData
 	DeleteData      *DeleteData
 	UpdateData      *UpdateData
@@ -302,6 +305,12 @@ func (p *Parser) Parse() (*ParseTree, error) {
 			return nil, err
 		}
 		return &ParseTree{Type: CreateTableTree, CreateTableData: data}, nil
+	case p.lexer.matchKeyword("DROP"):
+		data, err := p.parseDropTable()
+		if err != nil {
+			return nil, err
+		}
+		return &ParseTree{Type: DropTableTree, DropTableData: data}, nil
 	case p.lexer.matchKeyword("INSERT"):
 		data, err := p.parseInsert()
 		if err != nil {

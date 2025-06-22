@@ -433,21 +433,20 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 	return nil
 }
 
-func (btree *Btree) Create(serTblKey []byte, serTblData []byte) error {
+// Returns the root page no. of the table created
+func (btree *Btree) Create() (uint32, error) {
 	// Create root page of the new table.
 	rootPg, err := btree.pgr.AllocatePage(page.LeafPage)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	// Append the new root page to the database file.
-	err = btree.pgr.WritePage(rootPg)
-	if err != nil {
-		return err
+	// Write root page to the database file.
+	if err = btree.pgr.WritePage(rootPg); err != nil {
+		return 0, err
 	}
 
-	// Insert the serialized table key and data into the metadata table.
-	return btree.Insert(1, serTblKey, serTblData)
+	return rootPg.Id, nil
 }
 
 func (btree *Btree) First(rootPgNo uint32) (*BtreeIterator, error) {
@@ -614,6 +613,41 @@ func (btree *Btree) Delete(rootPgNo uint32, key []byte) error {
 	}
 
 	return nil
+}
+
+// Returns number of rows deleted
+func (btree *Btree) DeleteTree(rootPgNo uint32) (int, error) {
+	numRows := 0
+	// Generic BFS
+	queue := []uint32{}
+	queue = append(queue, rootPgNo)
+	for len(queue) != 0 {
+		levelSz := len(queue)
+		for levelSz != 0 {
+
+			levelSz--
+			pg, err := btree.pgr.ReadPage(queue[0])
+			if err != nil {
+				return 0, err
+			}
+			queue = queue[1:] // dequeue
+
+			if pg.Type == page.InteriorPage {
+				for i := 0; i < len(pg.CellPtrArr); i++ {
+					queue = append(queue, page.BytesToUint32(pg.Cells[pg.CellPtrArr[i]].Value)) // enqueue children
+				}
+				queue = append(queue, pg.LastPtr)
+			} else {
+				numRows += int(pg.NumCells)
+			}
+
+			if err = btree.pgr.FreePage(pg.Id); err != nil {
+				return 0, err
+			}
+		}
+	}
+
+	return numRows, nil
 }
 
 func (btree *Btree) GetNewPagePtr() *uint32 {
