@@ -203,28 +203,19 @@ func (p *Processor) ExecuteInsert(insertData *parser.InsertData) error {
 
 func (p *Processor) ExecuteCreateTable(tableData *parser.CreateTableData) error {
 	newPgNo := p.btree.GetNewPagePtr()
-	keyRec := &record.Record{
-		Columns: []*parser.TypeDef{{Type: "VARCHAR", Size: 255}},
-		Values:  []*parser.Constant{{StrVal: tableData.TableName}},
-	}
-	valueRec := &record.Record{
-		Columns: []*parser.TypeDef{
-			{Type: "VARCHAR", Size: 255},
-			{Type: "INT"},
-			{Type: "VARCHAR", Size: 255}},
-		Values: []*parser.Constant{
-			{Type: parser.StringToken, StrVal: tableData.TableName},
-			{Type: parser.IntegerToken, IntVal: int64(*newPgNo)},
-			{Type: parser.StringToken, StrVal: tableData.SchemaSql}},
-	}
+
+	keyRec := record.NewSchemaKeyRecord(tableData.TableName)
 	key, err := keyRec.Serialize()
 	if err != nil {
 		return err
 	}
+
+	valueRec := record.NewSchemaValueRecord(tableData.TableName, int(*newPgNo), tableData.SchemaSql)
 	value, err := valueRec.Serialize()
 	if err != nil {
 		return err
 	}
+
 	return p.btree.Create(key, value)
 }
 

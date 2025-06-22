@@ -124,7 +124,7 @@ func (ps *ProjectScan) GetFields() string {
 	}
 
 	r := []rune(sb.String())
-	return string(r[:len(r)-1]) // Remove unnecessaru '|' at the end of the string
+	return string(r[:len(r)-1]) // Remove unnecessary '|' at the end of the string
 }
 
 func (ps *ProjectScan) HasColumn(colName string) bool {

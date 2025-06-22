@@ -5,7 +5,6 @@ import (
 
 	"github.com/m0hossam/rocketsql/page"
 	"github.com/m0hossam/rocketsql/pager"
-	"github.com/m0hossam/rocketsql/parser"
 	"github.com/m0hossam/rocketsql/record"
 )
 
@@ -46,25 +45,13 @@ func NewBtree(dbFilePath string) (*Btree, error) {
 		}
 
 		// Insert schema_table data into schema_table
-		keyRec := &record.Record{
-			Columns: []*parser.TypeDef{{Type: "VARCHAR", Size: 255}},
-			Values:  []*parser.Constant{{Type: parser.StringToken, StrVal: "rocketsql_schema"}},
-		}
-		valueRec := &record.Record{
-			Columns: []*parser.TypeDef{
-				{Type: "VARCHAR", Size: 255},
-				{Type: "INT"},
-				{Type: "VARCHAR", Size: 255}},
-			Values: []*parser.Constant{
-				{Type: parser.StringToken, StrVal: "rocketsql_schema"},
-				{Type: parser.IntegerToken, IntVal: 1},
-				{Type: parser.StringToken, StrVal: "CREATE TABLE rocketsql_schema (table_name VARCHAR(255), root_page_no INT, table_schema VARCHAR(255))"}},
-		}
-
+		keyRec := record.NewSchemaKeyRecord("rocketsql_schema")
 		key, err := keyRec.Serialize()
 		if err != nil {
 			return nil, err
 		}
+
+		valueRec := record.NewSchemaValueRecord("rocketsql_schema", 1, "CREATE TABLE rocketsql_schema (table_name VARCHAR(255), root_page_no INT, table_schema VARCHAR(255))")
 		value, err := valueRec.Serialize()
 		if err != nil {
 			return nil, err

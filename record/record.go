@@ -74,6 +74,26 @@ func NewRecord(data []byte) (*Record, error) {
 	return &Record{Columns: columns, Values: values}, nil
 }
 
+func NewSchemaKeyRecord(tableName string) *Record {
+	return &Record{
+		Columns: []*parser.TypeDef{{Type: "VARCHAR", Size: 255}},
+		Values:  []*parser.Constant{{Type: parser.StringToken, StrVal: tableName}},
+	}
+}
+
+func NewSchemaValueRecord(tableName string, rootPgNo int, sql string) *Record {
+	return &Record{
+		Columns: []*parser.TypeDef{
+			{Type: "VARCHAR", Size: 255},
+			{Type: "INT"},
+			{Type: "VARCHAR", Size: 255}},
+		Values: []*parser.Constant{
+			{Type: parser.StringToken, StrVal: tableName},
+			{Type: parser.IntegerToken, IntVal: int64(rootPgNo)},
+			{Type: parser.StringToken, StrVal: sql}},
+	}
+}
+
 func (r *Record) Serialize() ([]byte, error) {
 	nFields := len(r.Columns)
 

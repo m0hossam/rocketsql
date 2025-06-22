@@ -24,12 +24,8 @@ func NewTableManager(bt *btree.Btree) *TableManager {
 }
 
 func (tm *TableManager) GetTableMetadata(tableName string) (*TableMetadata, error) {
-	rec := &record.Record{
-		Columns: []*parser.TypeDef{{Type: "VARCHAR", Size: 255}},
-		Values:  []*parser.Constant{{Type: parser.StringToken, StrVal: tableName}},
-	}
-
-	key, err := rec.Serialize()
+	keyRec := record.NewSchemaKeyRecord(tableName)
+	key, err := keyRec.Serialize()
 	if err != nil {
 		return nil, err
 	}
@@ -39,13 +35,13 @@ func (tm *TableManager) GetTableMetadata(tableName string) (*TableMetadata, erro
 		return nil, errors.New("table not found")
 	}
 
-	rec, err = record.NewRecord(data)
+	dataRec, err := record.NewRecord(data)
 	if err != nil {
 		return nil, err
 	}
 
-	rootPageNo := uint32(rec.Values[1].IntVal)
-	sqlSchema := rec.Values[2].StrVal
+	rootPageNo := uint32(dataRec.Values[1].IntVal)
+	sqlSchema := dataRec.Values[2].StrVal
 
 	p := parser.NewParser(sqlSchema)
 	pt, err := p.Parse()
