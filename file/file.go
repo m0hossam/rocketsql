@@ -1,7 +1,6 @@
 package file
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -34,7 +33,6 @@ func NewFileManager(dbFilePath string, dbPageSize int, dbHeaderSize int) (*FileM
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(fileInfo.Size())
 	if fileInfo.Size() == 0 {
 		emptyHeader := make([]byte, fm.dbHeaderSize)
 		if err = fm.Append(emptyHeader); err != nil {
@@ -85,6 +83,15 @@ func (fm *FileManager) Append(data []byte) error {
 		return err
 	}
 	return nil
+}
+
+func (fm *FileManager) Truncate(deleteSize int64) error {
+	fileInfo, err := fm.dbFile.Stat()
+	if err != nil {
+		return err
+	}
+	newFileSize := fileInfo.Size() - deleteSize
+	return fm.dbFile.Truncate(newFileSize)
 }
 
 func WriteStringToFile(filePath string, fileContent string) error {

@@ -54,19 +54,66 @@ func (pgr *Pager) ReadPage(ptr uint32) (*page.Page, error) {
 	return page.DeserializePage(ptr, data), nil
 }
 
-func (pgr *Pager) AppendPage(pg *page.Page) error {
-	data := pg.SerializePage()
-	if err := pgr.fileManager.Append(data); err != nil {
-		return err
-	}
-	pgr.dbHeader.NumPages++
-	return nil
-}
-
 func (pgr *Pager) WritePage(pg *page.Page) error {
 	data := pg.SerializePage()
+
+	// Append page
+	if pg.Id > pgr.dbHeader.NumPages {
+		if err := pgr.fileManager.Append(data); err != nil {
+			return err
+		}
+		pgr.dbHeader.NumPages++
+		return nil
+	}
+
+	// Write page in-place
 	off := int64((pg.Id-1)*page.DefaultPageSize + page.DbHeaderSize)
 	return pgr.fileManager.Write(off, data)
+}
+
+func (pgr *Pager) AllocatePage(pType uint8) (*page.Page, error) {
+	if pgr.dbHeader.NumFreePages == 0 {
+		return page.NewPage(pType, pgr.newPgPtr)
+	}
+
+	// Get recycled page from the freelist in the DB header
+	pgNo := pgr.dbHeader.FirstFreePage
+	pg, err := pgr.ReadPage(pgNo)
+	if err != nil {
+		return nil, err
+	}
+
+	pgr.dbHeader.FirstFreePage = pg.LastPtr // Next free page
+	pgr.dbHeader.NumFreePages--
+
+	pg.LastPtr = page.DbNullPage
+	pg.Type = pType
+
+	return pg, nil
+}
+
+func (pgr *Pager) FreePage(pgNo uint32) error {
+	// Last page in DB, truncate DB file
+	if pgr.dbHeader.NumPages == pgNo {
+		if err := pgr.fileManager.Truncate(page.DefaultPageSize); err != nil {
+			return err
+		}
+		pgr.dbHeader.NumPages--
+		*pgr.newPgPtr--
+		return nil
+	}
+
+	pg, err := pgr.ReadPage(pgNo)
+	if err != nil {
+		return err
+	}
+
+	// Add page to the linked-list of free pages
+	pg.Truncate()
+	pg.LastPtr = pgr.dbHeader.FirstFreePage // Store the next free page no. in this page's rightmost pointer
+	pgr.dbHeader.FirstFreePage = pgNo
+	pgr.dbHeader.NumFreePages++
+	return nil
 }
 
 func (pgr *Pager) GetNewPagePtr() *uint32 {

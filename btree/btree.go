@@ -37,11 +37,11 @@ func NewBtree(dbFilePath string) (*Btree, error) {
 
 	if pgr.GetDbHeader().NumPages == 0 { // New database
 		// Create rocketsql_schema table
-		pg1, err := page.NewPage(page.LeafPage, pgr.GetNewPagePtr())
+		pg1, err := pgr.AllocatePage(page.LeafPage)
 		if err != nil {
 			return nil, err
 		}
-		if err = pgr.AppendPage(pg1); err != nil {
+		if err = pgr.WritePage(pg1); err != nil {
 			return nil, err
 		}
 
@@ -340,7 +340,7 @@ func (btree *Btree) getPath(key []byte, root *page.Page) []uint32 { // returns p
 	return path
 }
 
-func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newChild uint32, newPgPtr *uint32) error {
+func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newChild uint32) error {
 	if (len(key) + len(value) + 2) > page.MaxCellSize {
 		return errors.New("max cell size exceeded")
 	}
@@ -352,7 +352,7 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 			return err
 		}
 
-		newPg, err := page.NewPage(rootPg.Type, newPgPtr)
+		newPg, err := btree.pgr.AllocatePage(rootPg.Type)
 		if err != nil {
 			return err
 		}
@@ -368,7 +368,7 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 		rootPg.LastPtr = newChild
 		insertCell(rootPg, newCell, 0, uint16(page.DefaultPageSize-len(newCell.Key)-len(newCell.Value)-2))
 
-		err = btree.pgr.AppendPage(newPg)
+		err = btree.pgr.WritePage(newPg)
 		if err != nil {
 			return err
 		}
@@ -407,7 +407,7 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 	cells := getOverfullCellArr(pg, newCell, ind)
 	mid := len(cells) / 2
 
-	newPg, err := page.NewPage(page.InteriorPage, newPgPtr)
+	newPg, err := btree.pgr.AllocatePage(page.InteriorPage)
 	if err != nil {
 		return err
 	}
@@ -433,12 +433,12 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 	if err != nil {
 		return err
 	}
-	err = btree.pgr.AppendPage(newPg)
+	err = btree.pgr.WritePage(newPg)
 	if err != nil {
 		return err
 	}
 
-	err = btree.interiorInsert(path[:len(path)-1], cells[mid].Key, page.Uint32ToBytes(pg.Id), newPg.Id, newPgPtr)
+	err = btree.interiorInsert(path[:len(path)-1], cells[mid].Key, page.Uint32ToBytes(pg.Id), newPg.Id)
 	if err != nil {
 		return err
 	}
@@ -448,13 +448,13 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 
 func (btree *Btree) Create(serTblKey []byte, serTblData []byte) error {
 	// Create root page of the new table.
-	rootPg, err := page.NewPage(page.LeafPage, btree.pgr.GetNewPagePtr())
+	rootPg, err := btree.pgr.AllocatePage(page.LeafPage)
 	if err != nil {
 		return err
 	}
 
 	// Append the new root page to the database file.
-	err = btree.pgr.AppendPage(rootPg)
+	err = btree.pgr.WritePage(rootPg)
 	if err != nil {
 		return err
 	}
@@ -544,7 +544,7 @@ func (btree *Btree) Insert(rootPgNo uint32, key []byte, value []byte) error {
 	cells := getOverfullCellArr(pg, newCell, ind)
 	mid := (len(cells) + 1) / 2
 
-	newPg, err := page.NewPage(page.LeafPage, btree.pgr.GetNewPagePtr())
+	newPg, err := btree.pgr.AllocatePage(page.LeafPage)
 	if err != nil {
 		return err
 	}
@@ -570,12 +570,12 @@ func (btree *Btree) Insert(rootPgNo uint32, key []byte, value []byte) error {
 	if err != nil {
 		return err
 	}
-	err = btree.pgr.AppendPage(newPg)
+	err = btree.pgr.WritePage(newPg)
 	if err != nil {
 		return err
 	}
 
-	err = btree.interiorInsert(path[:len(path)-1], newPg.Cells[newPg.CellPtrArr[0]].Key, page.Uint32ToBytes(pg.Id), newPg.Id, btree.pgr.GetNewPagePtr())
+	err = btree.interiorInsert(path[:len(path)-1], newPg.Cells[newPg.CellPtrArr[0]].Key, page.Uint32ToBytes(pg.Id), newPg.Id)
 	if err != nil {
 		return err
 	}

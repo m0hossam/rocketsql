@@ -112,6 +112,7 @@ func NewPage(pType uint8, newPtr *uint32) (*Page, error) {
 }
 
 func (pg *Page) Truncate() {
+	pg.FreeList = nil
 	pg.NumCells = 0
 	pg.CellArrOff = DefaultPageSize
 	pg.NumFragBytes = 0
