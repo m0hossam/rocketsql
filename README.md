@@ -46,6 +46,9 @@ UPDATE t SET a = 15 WHERE b = 'Guava'
 - `.rebuild_table <table name>` rebuilds and vacuums a table, useful after multiple deletions, saves space by freeing the empty pages
 
 Notes:
+- You can query the schema table using one of the following queries:
+  - `SELECT * FROM rocketsql_schema`
+  - `SELECT table_name, root_page_no, table_schema FROM rocketsql_schema` 
 - All operations are done through B-Tree algorithms.
 - Due to the balanced nature of the B-Tree data structure, the records are sorted in ascending order according to their primary keys, this allows for binary search retrieval.
 - Insertion sometimes causes the B-Tree to split nodes, rearrange the records among the nodes (i.e. load-balancing) and increase the tree’s depth by one.
