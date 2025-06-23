@@ -30,6 +30,11 @@ type DropTableData struct {
 	TableName string
 }
 
+// <TruncateTable> := TRUNCATE TABLE IdTok
+type TruncateTableData struct {
+	TableName string
+}
+
 func (p *Parser) parseTypeDef() (*TypeDef, error) {
 	switch {
 	case p.lexer.matchKeyword("SMALLINT"):
@@ -202,6 +207,25 @@ func (p *Parser) parseDropTable() (*DropTableData, error) {
 	}
 
 	return &DropTableData{
+		TableName: tableName,
+	}, nil
+}
+
+func (p *Parser) parseTruncateTable() (*TruncateTableData, error) {
+	if err := p.lexer.eatKeyword("TRUNCATE"); err != nil {
+		return nil, err
+	}
+
+	if err := p.lexer.eatKeyword("TABLE"); err != nil {
+		return nil, err
+	}
+
+	tableName, err := p.lexer.eatIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	return &TruncateTableData{
 		TableName: tableName,
 	}, nil
 }

@@ -24,10 +24,12 @@ import (
 
 <Update> := UPDATE IdTok SET <Field> = <Constant> [ WHERE <Predicate> ]
 
-<DDL> := <CreateTable> | <DropTable>
+<DDL> := <CreateTable> | <DropTable> | <TruncateTable>
 
 <CreateTable> := CREATE TABLE IdTok ( <FieldDefs> )
 <DropTable> := DROP TABLE IdTok
+<TruncateTable> := TRUNCATE TABLE IdTok
+
 
 <FieldDefs> := <FieldDef> [ , <FieldDefs> ]
 <FieldDef> := IdTok <TypeDef>
@@ -77,16 +79,18 @@ const (
 	UpdateTree
 	CreateTableTree
 	DropTableTree
+	TruncateTableTree
 )
 
 type ParseTree struct {
-	Type            ParseTreeType
-	Query           *Query
-	CreateTableData *CreateTableData
-	DropTableData   *DropTableData
-	InsertData      *InsertData
-	DeleteData      *DeleteData
-	UpdateData      *UpdateData
+	Type              ParseTreeType
+	Query             *Query
+	CreateTableData   *CreateTableData
+	DropTableData     *DropTableData
+	TruncateTableData *TruncateTableData
+	InsertData        *InsertData
+	DeleteData        *DeleteData
+	UpdateData        *UpdateData
 }
 
 type Parser struct {
@@ -311,6 +315,12 @@ func (p *Parser) Parse() (*ParseTree, error) {
 			return nil, err
 		}
 		return &ParseTree{Type: DropTableTree, DropTableData: data}, nil
+	case p.lexer.matchKeyword("TRUNCATE"):
+		data, err := p.parseTruncateTable()
+		if err != nil {
+			return nil, err
+		}
+		return &ParseTree{Type: TruncateTableTree, TruncateTableData: data}, nil
 	case p.lexer.matchKeyword("INSERT"):
 		data, err := p.parseInsert()
 		if err != nil {

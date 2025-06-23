@@ -41,6 +41,9 @@ func (p *Processor) ExecuteSQL(parseTree *parser.ParseTree) (int, Scan, error) {
 	case parser.DropTableTree:
 		rows, err := p.ExecuteDropTable(parseTree.DropTableData)
 		return rows, nil, err
+	case parser.TruncateTableTree:
+		rows, err := p.ExecuteTruncateTable(parseTree.TruncateTableData)
+		return rows, nil, err
 	case parser.DeleteTree:
 		rows, err := p.ExecuteDelete(parseTree.DeleteData)
 		return rows, nil, err
@@ -265,6 +268,17 @@ func (p *Processor) ExecuteDropTable(tableData *parser.DropTableData) (int, erro
 	}
 
 	return rowsAffected, nil
+}
+
+func (p *Processor) ExecuteTruncateTable(tableData *parser.TruncateTableData) (int, error) {
+	// Get metadata to get the root page no. of the table
+	metadata, err := p.tblManager.GetTableMetadata(tableData.TableName)
+	if err != nil {
+		return 0, err
+	}
+
+	// Truncate table
+	return p.btree.TruncateTree(metadata.RootPageNo)
 }
 
 func (p *Processor) ExecuteQuery(query *parser.Query) (Scan, error) {
