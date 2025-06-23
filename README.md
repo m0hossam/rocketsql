@@ -6,7 +6,7 @@ This is a _**work-in-progress**_ database engine built from scratch inspired by 
 
 ### Queries:
 
-```sql
+```tsql
 SELECT * FROM t
 SELECT a, b, c FROM t
 SELECT a, b, c FROM t WHERE a = 5
@@ -15,33 +15,41 @@ SELECT * FROM x, y WHERE x_id = y_id
 
 ### DDL:
 
-```sql
+```tsql
 CREATE TABLE t (c1 INT, c2 FLOAT, c3 VARCHAR(32))
+DROP TABLE t
+TRUNCATE TABLE t
 ```
 
 ### DML:
 
-```sql
+```tsql
 INSERT INTO t (c1, c2, c3) VALUES (1, 12.55, 'Hello, world')
 INSERT INTO t (c3, c1, c2) VALUES ('Look at you, hacker', 2, 15.88)
 INSERT INTO t VALUES (3, 99.99, 'Aloha')
 ```
 
-```sql
+```tsql
 DELETE FROM t
 DELETE FROM t WHERE a = 5
 ```
 
-```sql
+```tsql
 UPDATE t SET a = 15
 UPDATE t SET a = 15 WHERE b = 'Guava'
 ```
+
+## Meta-Commands
+
+- `.dump_table <table name>` dumps the contents of a table's B-Tree in a text file
+- `.dump_page <page number>` dumps the contents of a page in a text file
+- `.rebuild_table <table name>` rebuilds and vacuums a table, useful after multiple deletions, saves space by freeing the empty pages
 
 Notes:
 - All operations are done through B-Tree algorithms.
 - Due to the balanced nature of the B-Tree data structure, the records are sorted in ascending order according to their primary keys, this allows for binary search retrieval.
 - Insertion sometimes causes the B-Tree to split nodes, rearrange the records among the nodes (i.e. load-balancing) and increase the tree’s depth by one.
-- Deletion causes the removal of a record from its containing leaf page only, there might exist a key pointing to the deleted record in one of the interior pages. Deletion never does load-balancing, this could be changed in future implementations.
+- Deletion causes the removal of a record from its containing leaf page only, there might exist a key pointing to the deleted record in one of the interior pages. This is a little space-wasteful. You should investigate the contents of the table using `.dump_table <t>` and use `.rebuild_table <t>` if you find too many empty pages.
 - Updates consist of a delete operation followed by an insert operation.
 
 ## The Database
@@ -70,10 +78,9 @@ field is preceded by a 2-byte size field.
 ## Current Issues
 
 B-Tree:
-- The delete operation does not remove interior B-Tree keys or decrease the depth of the B-Tree. This is space wasteful.
-- The delete operation does not delete an entire leaf page when it becomes completely empty. It should be truncated and added to a list of free pages to be reused later for future B-Trees.
-- The algorithm that allocates free space for new cells is not well tested, there may exist corner cases that break the algorithm.
-- The algorithm that creates and manages free blocks upon cell deletion is not tested enough.
+- The delete operation does not remove interior B-Tree keys or decrease the depth of the B-Tree. This is space wasteful, but it avoids the complexity of load balancing after deletion. We provide the `.rebuild_table <t>` meta-command for the user to use if they wish to save some space.
+- The delete operation does not free leaf pages after the become empty. Again, the user can fix this using `.rebuild_table` as per needed.
+- More testing is needed.
 
 SQL:
 - Query planning not implemented, semantics are mostly not checked
@@ -85,7 +92,6 @@ SQL:
 ## Unsupported Features
 
 SQL:
-- Dropping tables. However, you can still delete all the rows using `DELETE FROM t;`
 - Indexes, views or other advanced structures
 - Aggregations
 - Sorting
