@@ -245,14 +245,14 @@ func (p *Processor) ExecuteCreateTable(tableData *parser.CreateTableData) error 
 }
 
 func (p *Processor) ExecuteDropTable(tableData *parser.DropTableData) (int, error) {
-	// Get metadata to get the root page no. of the table
-	metadata, err := p.tblManager.GetTableMetadata(tableData.TableName)
+	// Get the root page no. of the table
+	rootPgNo, err := p.tblManager.GetTableRootPageNo(tableData.TableName)
 	if err != nil {
 		return 0, err
 	}
 
 	// Drop table
-	rowsAffected, err := p.btree.DeleteTree(metadata.RootPageNo)
+	rowsAffected, err := p.btree.DeleteTree(rootPgNo)
 	if err != nil {
 		return 0, err
 	}
@@ -271,14 +271,14 @@ func (p *Processor) ExecuteDropTable(tableData *parser.DropTableData) (int, erro
 }
 
 func (p *Processor) ExecuteTruncateTable(tableData *parser.TruncateTableData) (int, error) {
-	// Get metadata to get the root page no. of the table
-	metadata, err := p.tblManager.GetTableMetadata(tableData.TableName)
+	// Get the root page no. of the table
+	rootPgNo, err := p.tblManager.GetTableRootPageNo(tableData.TableName)
 	if err != nil {
 		return 0, err
 	}
 
 	// Truncate table
-	return p.btree.TruncateTree(metadata.RootPageNo)
+	return p.btree.TruncateTree(rootPgNo)
 }
 
 func (p *Processor) ExecuteQuery(query *parser.Query) (Scan, error) {
