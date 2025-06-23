@@ -5,10 +5,6 @@ import (
 	"maps"
 )
 
-var (
-	MaxCellsPerPage uint16 = 3 // for testing purposes (TODO: REMOVE THIS)
-)
-
 const ( // database header constants
 	DbHeaderSize           = 12
 	OffsetOfDbNumPages     = 0

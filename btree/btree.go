@@ -164,10 +164,6 @@ func defragPage(pg *page.Page) {
 }
 
 func insertIntoPage(pg *page.Page, c page.Cell, ind int) error {
-	if pg.NumCells == page.MaxCellsPerPage {
-		return errors.New("page does not have enough space (soft limit), need to split")
-	}
-
 	cellSize := uint16(2 + len(c.Key) + len(c.Value))
 	if pg.Type == page.LeafPage {
 		cellSize += 2
@@ -228,19 +224,64 @@ func insertIntoPage(pg *page.Page, c page.Cell, ind int) error {
 	return nil
 }
 
-func getOverfullCellArr(pg *page.Page, newCell page.Cell, ind int) []page.Cell {
+// Returns the overfull cell array and the middle index used for distribution during insertion
+func distributeCells(pg *page.Page, newCell page.Cell, newCellIndex int) ([]page.Cell, int) {
 	cells := []page.Cell{}
-	for i := 0; i < ind; i++ {
-		c := pg.Cells[pg.CellPtrArr[i]]
-		cells = append(cells, c)
-	}
-	cells = append(cells, newCell)
-	for i := ind; i < len(pg.CellPtrArr); i++ {
-		c := pg.Cells[pg.CellPtrArr[i]]
-		cells = append(cells, c)
+	middleIndex := 0
+	pgSpace := page.DefaultPageSize - page.DbHeaderSize // Total empty space in the old page
+	cellVarSizes := 2                                   // 2 bytes to determine size of variable key
+	if pg.Type == page.LeafPage {
+		cellVarSizes += 2 // 2 bytes to determine size of variable value in leaves
 	}
 
-	return cells
+	for i := 0; i < newCellIndex; i++ {
+		cell := pg.Cells[pg.CellPtrArr[i]]
+		cells = append(cells, cell)
+
+		requiredSpace := len(cell.Key) + len(cell.Value) + cellVarSizes + page.SizeOfCellOff
+
+		if middleIndex == 0 { // If we haven't found a middle index yet (if we find it, it'll be non-zero)
+			if requiredSpace <= pgSpace { // Fit as many cells as possible in the old page
+				pgSpace -= requiredSpace
+			} else {
+				middleIndex = i
+			}
+		}
+	}
+
+	cells = append(cells, newCell)
+	requiredSpace := len(newCell.Key) + len(newCell.Value) + cellVarSizes + page.SizeOfCellOff
+
+	if middleIndex == 0 {
+		if requiredSpace <= pgSpace {
+			pgSpace -= requiredSpace
+		} else {
+			middleIndex = newCellIndex
+		}
+	}
+
+	for i := newCellIndex; i < len(pg.CellPtrArr); i++ {
+		cell := pg.Cells[pg.CellPtrArr[i]]
+		cells = append(cells, cell)
+
+		requiredSpace = len(cell.Key) + len(cell.Value) + cellVarSizes + page.SizeOfCellOff
+
+		if middleIndex == 0 {
+			if requiredSpace <= pgSpace {
+				pgSpace -= requiredSpace
+			} else {
+				middleIndex = i + 1 // We add one because we just appended the new cell before this loop
+			}
+		}
+	}
+
+	// Remember: In interiorInsert, cell[middleIndex] gets inserted into the parent and not into the new page.
+	// We need to make sure (middleIndex != last index); because that will lead to an empty new page.
+	if middleIndex == (len(cells)-1) && pg.Type == page.InteriorPage {
+		middleIndex -= 1 // Remember that (len(cells) >= 3) due to the minCells and MaxCellSize constraints
+	}
+
+	return cells, middleIndex
 }
 
 func insertFreeBlock(pg *page.Page, newFreeBlock *page.FreeBlock) {
@@ -397,8 +438,7 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 		return btree.pgr.WritePage(pg)
 	}
 
-	cells := getOverfullCellArr(pg, newCell, ind)
-	mid := len(cells) / 2
+	cells, mid := distributeCells(pg, newCell, ind)
 
 	newPg, err := btree.pgr.AllocatePage(page.InteriorPage)
 	if err != nil {
@@ -533,8 +573,7 @@ func (btree *Btree) Insert(rootPgNo uint32, key []byte, value []byte) error {
 		return btree.pgr.WritePage(pg)
 	}
 
-	cells := getOverfullCellArr(pg, newCell, ind)
-	mid := (len(cells) + 1) / 2
+	cells, mid := distributeCells(pg, newCell, ind)
 
 	newPg, err := btree.pgr.AllocatePage(page.LeafPage)
 	if err != nil {
