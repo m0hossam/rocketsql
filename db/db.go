@@ -1,7 +1,6 @@
 package db
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/m0hossam/rocketsql/btree"
@@ -44,27 +43,11 @@ func (db *Db) ExecuteMetaCommand(cmd string) string {
 	if len(cmd) >= 13 {
 		if cmd[:12] == ".dump_table " {
 			tblName := cmd[12:]
-			query := fmt.Sprintf("SELECT root_page_no FROM rocketsql_schema WHERE table_name='%s'", tblName)
-
-			_, result, err := db.ExecuteSQL(query)
+			rootPgNo, err := db.processor.GetTableRootPageNo(tblName)
 			if err != nil {
 				return err.Error()
 			}
-
-			if err = result.BeforeFirst(); err != nil {
-				return err.Error()
-			}
-
-			if _, err = result.Next(); err != nil {
-				return err.Error()
-			}
-
-			i32, err := result.GetInt32("root_page_no")
-			if err != nil {
-				return err.Error()
-			}
-
-			return db.btree.DumpBTree(tblName, uint32(i32))
+			return db.btree.DumpBTree(tblName, rootPgNo)
 		}
 	}
 

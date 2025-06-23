@@ -21,6 +21,10 @@ func NewProcessor(btree *btree.Btree) *Processor {
 	}
 }
 
+func (p *Processor) GetTableRootPageNo(tableName string) (uint32, error) {
+	return p.tblManager.GetTableRootPageNo(tableName)
+}
+
 // rows affected, result table
 func (p *Processor) ExecuteSQL(parseTree *parser.ParseTree) (int, Scan, error) {
 	switch parseTree.Type {

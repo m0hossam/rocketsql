@@ -54,3 +54,23 @@ func (tm *TableManager) GetTableMetadata(tableName string) (*TableMetadata, erro
 		TableSchema: pt.CreateTableData,
 	}, nil
 }
+
+func (tm *TableManager) GetTableRootPageNo(tableName string) (uint32, error) {
+	keyRec := record.NewSchemaKeyRecord(tableName)
+	key, err := keyRec.Serialize()
+	if err != nil {
+		return 0, err
+	}
+
+	data, pgNo := tm.btree.Get(key, 1)
+	if pgNo == 0 {
+		return 0, errors.New("table not found")
+	}
+
+	dataRec, err := record.NewRecord(data)
+	if err != nil {
+		return 0, err
+	}
+
+	return uint32(dataRec.Values[1].IntVal), nil
+}
