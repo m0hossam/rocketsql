@@ -123,7 +123,7 @@ func (p *Processor) ExecuteDelete(deleteData *parser.DeleteData) (int, error) {
 
 	// If there is no predicate, then it's equivalent to (TRUNCATE TABLE t)
 	if deleteData.Predicate == nil {
-		rowsAffected, err := p.btree.DeleteTree(metadata.RootPageNo, true)
+		rowsAffected, err := p.btree.TruncateTree(metadata.RootPageNo)
 		if err != nil {
 			return 0, err
 		}
@@ -249,7 +249,7 @@ func (p *Processor) ExecuteDropTable(tableData *parser.DropTableData) (int, erro
 	}
 
 	// Drop table
-	rowsAffected, err := p.btree.DeleteTree(metadata.RootPageNo, false)
+	rowsAffected, err := p.btree.DeleteTree(metadata.RootPageNo)
 	if err != nil {
 		return 0, err
 	}

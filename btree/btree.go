@@ -14,6 +14,12 @@ Simplifying assumptions:
 - to avoid cases where we need to create two new pages for insertion
 */
 
+const (
+	dropFlag = iota
+	truncateFlag
+	rebuildFlag
+)
+
 type BtreeIterator struct {
 	pgr     *pager.Pager
 	curPg   *page.Page
@@ -616,49 +622,11 @@ func (btree *Btree) Delete(rootPgNo uint32, key []byte) error {
 }
 
 func (btree *Btree) RebuildTree(rootPgNo uint32) error {
-	leafCells := []page.Cell{}
 
-	// First, free all pages in the tree - except the root - and buffer the leaf cells (generic BFS)
-	queue := []uint32{}
-	queue = append(queue, rootPgNo)
-	for len(queue) != 0 {
-		levelSz := len(queue)
-		for levelSz != 0 {
-
-			levelSz--
-			pg, err := btree.pgr.ReadPage(queue[0])
-			if err != nil {
-				return err
-			}
-			queue = queue[1:] // dequeue
-
-			if pg.Type == page.InteriorPage {
-				for i := 0; i < len(pg.CellPtrArr); i++ {
-					queue = append(queue, page.BytesToUint32(pg.Cells[pg.CellPtrArr[i]].Value)) // enqueue children
-				}
-				queue = append(queue, pg.LastPtr)
-			} else {
-				// Copy cells to buffer
-				for _, cell := range pg.Cells {
-					leafCells = append(leafCells, cell)
-				}
-			}
-
-			// Truncate root and set its type to LeafPage
-			if pg.Id == rootPgNo {
-				pg.Truncate()
-				pg.Type = page.LeafPage
-				if err = btree.pgr.WritePage(pg); err != nil {
-					return err
-				}
-				continue
-			}
-
-			// Otherwise, free the page
-			if err = btree.pgr.FreePage(pg.Id); err != nil {
-				return err
-			}
-		}
+	// First, free all pages in the tree except the root, and buffer the leaf cells
+	leafCells, _, err := btree.freeTree(rootPgNo, rebuildFlag)
+	if err != nil {
+		return err
 	}
 
 	// Second, insert the buffered leaf cells into the tree (which now consists of a root only)
@@ -671,8 +639,26 @@ func (btree *Btree) RebuildTree(rootPgNo uint32) error {
 	return nil
 }
 
-// Returns number of rows deleted
-func (btree *Btree) DeleteTree(rootPgNo uint32, truncateRoot bool) (int, error) {
+// Returns number of deleted rows, frees the tree's root
+func (btree *Btree) DeleteTree(rootPgNo uint32) (int, error) {
+	_, delRows, err := btree.freeTree(rootPgNo, dropFlag)
+	return delRows, err
+}
+
+// Returns number of deleted rows, truncates the tree's root but does not free it
+func (btree *Btree) TruncateTree(rootPgNo uint32) (int, error) {
+	_, delRows, err := btree.freeTree(rootPgNo, truncateFlag)
+	return delRows, err
+}
+
+/*
+General purpose tree deletion
+(flag == dropFlag) -> DROP TABLE t
+(flag == truncateFlag) -> TRUNCATE TABLE t || DELETE FROM t
+(flag == rebuildFlag) -> .rebuild_table t
+*/
+func (btree *Btree) freeTree(rootPgNo uint32, flag int) ([]page.Cell, int, error) {
+	leafCells := []page.Cell{}
 	numRows := 0
 	// Generic BFS
 	queue := []uint32{}
@@ -684,7 +670,7 @@ func (btree *Btree) DeleteTree(rootPgNo uint32, truncateRoot bool) (int, error) 
 			levelSz--
 			pg, err := btree.pgr.ReadPage(queue[0])
 			if err != nil {
-				return 0, err
+				return nil, 0, err
 			}
 			queue = queue[1:] // dequeue
 
@@ -693,28 +679,31 @@ func (btree *Btree) DeleteTree(rootPgNo uint32, truncateRoot bool) (int, error) 
 					queue = append(queue, page.BytesToUint32(pg.Cells[pg.CellPtrArr[i]].Value)) // enqueue children
 				}
 				queue = append(queue, pg.LastPtr)
-			} else {
+			} else if flag == rebuildFlag { // Leaf page and we're rebuilding the tree
+				for _, cell := range pg.Cells {
+					leafCells = append(leafCells, cell)
+				}
+			} else { // Leaf page and we're dropping or truncating the tree
 				numRows += int(pg.NumCells)
 			}
 
-			// For (TRUNCATE TABLE t) or (DELETE FROM t): Truncate root and set its type to LeafPage
-			if pg.Id == rootPgNo && truncateRoot {
+			// If we're truncating or rebuilding the tree, the root isn't freed, it's only truncated
+			if pg.Id == rootPgNo && flag != dropFlag {
 				pg.Truncate()
-				pg.Type = page.LeafPage
+				pg.Type = page.LeafPage // Now, the tree consists of the root only
 				if err = btree.pgr.WritePage(pg); err != nil {
-					return 0, err
+					return nil, 0, err
 				}
 				continue
 			}
 
-			// Otherwise (DROP TABLE t), we free the page
 			if err = btree.pgr.FreePage(pg.Id); err != nil {
-				return 0, err
+				return nil, 0, err
 			}
 		}
 	}
 
-	return numRows, nil
+	return leafCells, numRows, nil
 }
 
 func (btree *Btree) DumpBTree(tblName string, rootPgNo uint32) string {
