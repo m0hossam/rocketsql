@@ -616,7 +616,7 @@ func (btree *Btree) Delete(rootPgNo uint32, key []byte) error {
 }
 
 // Returns number of rows deleted
-func (btree *Btree) DeleteTree(rootPgNo uint32) (int, error) {
+func (btree *Btree) DeleteTree(rootPgNo uint32, truncateRoot bool) (int, error) {
 	numRows := 0
 	// Generic BFS
 	queue := []uint32{}
@@ -641,6 +641,17 @@ func (btree *Btree) DeleteTree(rootPgNo uint32) (int, error) {
 				numRows += int(pg.NumCells)
 			}
 
+			// For (TRUNCATE TABLE t) or (DELETE FROM t): Truncate root and set its type to LeafPage
+			if pg.Id == rootPgNo && truncateRoot {
+				pg.Truncate()
+				pg.Type = page.LeafPage
+				if err = btree.pgr.WritePage(pg); err != nil {
+					return 0, err
+				}
+				continue
+			}
+
+			// Otherwise (DROP TABLE t), we free the page
 			if err = btree.pgr.FreePage(pg.Id); err != nil {
 				return 0, err
 			}
