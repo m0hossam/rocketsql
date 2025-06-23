@@ -40,7 +40,7 @@ func (db *Db) ExecuteSQL(sql string) (int, processor.Scan, error) {
 
 func (db *Db) ExecuteMetaCommand(cmd string) string {
 	// .dump_table <table name>
-	if len(cmd) >= 13 {
+	if len(cmd) > 12 {
 		if cmd[:12] == ".dump_table " {
 			tblName := cmd[12:]
 			rootPgNo, err := db.processor.GetTableRootPageNo(tblName)
@@ -52,7 +52,7 @@ func (db *Db) ExecuteMetaCommand(cmd string) string {
 	}
 
 	// .dump_page <page number>
-	if len(cmd) >= 12 {
+	if len(cmd) > 11 {
 		if cmd[:11] == ".dump_page " {
 			pgNum, err := strconv.ParseInt(cmd[11:], 10, 32)
 			if err != nil {
@@ -63,7 +63,22 @@ func (db *Db) ExecuteMetaCommand(cmd string) string {
 		}
 	}
 
-	return ""
+	// .rebuild_table <table name>
+	if len(cmd) > 15 {
+		if cmd[:15] == ".rebuild_table " {
+			tblName := cmd[15:]
+			rootPgNo, err := db.processor.GetTableRootPageNo(tblName)
+			if err != nil {
+				return err.Error()
+			}
+			if err = db.btree.RebuildTree(rootPgNo); err != nil {
+				return err.Error()
+			}
+			return "Table '" + tblName + "' rebuilt successfully"
+		}
+	}
+
+	return "Invalid syntax"
 }
 
 func (db *Db) Close() error {

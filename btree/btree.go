@@ -615,6 +615,62 @@ func (btree *Btree) Delete(rootPgNo uint32, key []byte) error {
 	return nil
 }
 
+func (btree *Btree) RebuildTree(rootPgNo uint32) error {
+	leafCells := []page.Cell{}
+
+	// First, free all pages in the tree - except the root - and buffer the leaf cells (generic BFS)
+	queue := []uint32{}
+	queue = append(queue, rootPgNo)
+	for len(queue) != 0 {
+		levelSz := len(queue)
+		for levelSz != 0 {
+
+			levelSz--
+			pg, err := btree.pgr.ReadPage(queue[0])
+			if err != nil {
+				return err
+			}
+			queue = queue[1:] // dequeue
+
+			if pg.Type == page.InteriorPage {
+				for i := 0; i < len(pg.CellPtrArr); i++ {
+					queue = append(queue, page.BytesToUint32(pg.Cells[pg.CellPtrArr[i]].Value)) // enqueue children
+				}
+				queue = append(queue, pg.LastPtr)
+			} else {
+				// Copy cells to buffer
+				for _, cell := range pg.Cells {
+					leafCells = append(leafCells, cell)
+				}
+			}
+
+			// Truncate root and set its type to LeafPage
+			if pg.Id == rootPgNo {
+				pg.Truncate()
+				pg.Type = page.LeafPage
+				if err = btree.pgr.WritePage(pg); err != nil {
+					return err
+				}
+				continue
+			}
+
+			// Otherwise, free the page
+			if err = btree.pgr.FreePage(pg.Id); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Second, insert the buffered leaf cells into the tree (which now consists of a root only)
+	for _, cell := range leafCells {
+		if err := btree.Insert(rootPgNo, cell.Key, cell.Value); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Returns number of rows deleted
 func (btree *Btree) DeleteTree(rootPgNo uint32, truncateRoot bool) (int, error) {
 	numRows := 0
