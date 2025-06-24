@@ -226,62 +226,76 @@ func insertIntoPage(pg *page.Page, c page.Cell, ind int) error {
 
 // Returns the overfull cell array and the middle index used for distribution during insertion
 func distributeCells(pg *page.Page, newCell page.Cell, newCellIndex int) ([]page.Cell, int) {
-	cells := []page.Cell{}
-	middleIndex := 0
-	pgSpace := page.DefaultPageSize - page.DbHeaderSize // Total empty space in the old page
-	cellVarSizes := 2                                   // 2 bytes to determine size of variable key
+	cells := make([]page.Cell, pg.NumCells+1)
+	prefixRequiredSpace := make([]int, pg.NumCells+1)
+	totalRequiredSpace := 0
+	cellVarSizes := 2 // 2 bytes to determine size of variable key
 	if pg.Type == page.LeafPage {
 		cellVarSizes += 2 // 2 bytes to determine size of variable value in leaves
 	}
 
 	for i := 0; i < newCellIndex; i++ {
 		cell := pg.Cells[pg.CellPtrArr[i]]
-		cells = append(cells, cell)
+		cells[i] = cell
 
-		requiredSpace := len(cell.Key) + len(cell.Value) + cellVarSizes + page.SizeOfCellOff
-
-		if middleIndex == 0 { // If we haven't found a middle index yet (if we find it, it'll be non-zero)
-			if requiredSpace <= pgSpace { // Fit as many cells as possible in the old page
-				pgSpace -= requiredSpace
-			} else {
-				middleIndex = i
-			}
-		}
+		totalRequiredSpace += len(cell.Key) + len(cell.Value) + cellVarSizes + page.SizeOfCellOff
+		prefixRequiredSpace[i] = totalRequiredSpace
 	}
 
-	cells = append(cells, newCell)
-	requiredSpace := len(newCell.Key) + len(newCell.Value) + cellVarSizes + page.SizeOfCellOff
-
-	if middleIndex == 0 {
-		if requiredSpace <= pgSpace {
-			pgSpace -= requiredSpace
-		} else {
-			middleIndex = newCellIndex
-		}
-	}
+	cells[newCellIndex] = newCell
+	totalRequiredSpace += len(newCell.Key) + len(newCell.Value) + cellVarSizes + page.SizeOfCellOff
+	prefixRequiredSpace[newCellIndex] = totalRequiredSpace
 
 	for i := newCellIndex; i < len(pg.CellPtrArr); i++ {
 		cell := pg.Cells[pg.CellPtrArr[i]]
-		cells = append(cells, cell)
+		cells[i+1] = cell
 
-		requiredSpace = len(cell.Key) + len(cell.Value) + cellVarSizes + page.SizeOfCellOff
+		totalRequiredSpace += len(cell.Key) + len(cell.Value) + cellVarSizes + page.SizeOfCellOff
+		prefixRequiredSpace[i+1] = totalRequiredSpace
+	}
 
-		if middleIndex == 0 {
-			if requiredSpace <= pgSpace {
-				pgSpace -= requiredSpace
-			} else {
-				middleIndex = i + 1 // We add one because we just appended the new cell before this loop
-			}
+	pageEmptySpace := page.DefaultPageSize - page.DbHeaderSize // Total empty space in a page
+	bestMiddleIndex := 0
+	bestSpaceDiff := pageEmptySpace // Initialize with the maximum possible space difference
+
+	// Start from (i = 1) because the middle index can never be 0
+	// Remember that (len(cells) >= 3) due to the minCells and MaxCellSize constraints
+	for i := 1; i < len(prefixRequiredSpace); i++ {
+		// Calculate the required space for left and right nodes based on the middle index
+		requiredLeftSpace := prefixRequiredSpace[i-1] // The middle cell is inserted into the right node
+		requiredRightSpace := totalRequiredSpace - requiredLeftSpace
+
+		// If this is interiorInsert, subtract the middle cell size from the right node, because it's inserted into the parent
+		if pg.Type == page.InteriorPage {
+			middleCellSize := prefixRequiredSpace[i] - prefixRequiredSpace[i-1]
+			requiredRightSpace -= middleCellSize
+		}
+
+		// Skip if either node exceeds the total empty space
+		if requiredLeftSpace > pageEmptySpace || requiredRightSpace > pageEmptySpace {
+			continue
+		}
+
+		// Calculate the absolute difference in required space between the left and right nodes
+		spaceDiff := requiredLeftSpace - requiredRightSpace
+		if spaceDiff < 0 {
+			spaceDiff = -spaceDiff
+		}
+
+		// Optimize for the smallest difference in space for an even distribution of cells
+		if spaceDiff < bestSpaceDiff {
+			bestSpaceDiff = spaceDiff
+			bestMiddleIndex = i
 		}
 	}
 
-	// Remember: In interiorInsert, cell[middleIndex] gets inserted into the parent and not into the new page.
-	// We need to make sure (middleIndex != last index); because that will lead to an empty new page.
-	if middleIndex == (len(cells)-1) && pg.Type == page.InteriorPage {
-		middleIndex -= 1 // Remember that (len(cells) >= 3) due to the minCells and MaxCellSize constraints
+	// Remember: In interiorInsert, cell[middleIndex] gets inserted into the parent and not into the right page.
+	// We need to assert that (middleIndex != last index), because that will lead to an empty right page.
+	if pg.Type == page.InteriorPage && bestMiddleIndex == (len(cells)-1) {
+		bestMiddleIndex -= 1 // Remember that (len(cells) >= 3) due to the minCells and MaxCellSize constraints
 	}
 
-	return cells, middleIndex
+	return cells, bestMiddleIndex
 }
 
 func insertFreeBlock(pg *page.Page, newFreeBlock *page.FreeBlock) {
