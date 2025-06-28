@@ -458,7 +458,7 @@ func (btree *Btree) interiorInsert(path []uint32, key []byte, value []byte, newC
 	if err != nil {
 		return err
 	}
-	newPg.LastPtr = newChild
+	newPg.LastPtr = pg.LastPtr
 
 	pg.Truncate()
 	pg.LastPtr = page.BytesToUint32(cells[mid].Value)

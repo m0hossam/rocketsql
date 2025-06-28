@@ -29,7 +29,8 @@ go.work.sum
 *.rocketsql
 *.db
 
-# Temporary files used for testing
+# Temporary files or folders used for testing
+/cmd/example/
 /temp
 *.txt
 
