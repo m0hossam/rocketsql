@@ -254,6 +254,16 @@ func (ts *TableScan) SetString(colName string, val string) error {
 }
 
 func (ts *TableScan) InsertRow() error {
+
+	// This is a temporary fix for updating VARCHAR fields
+	// because NewRecord() sets the column size of VARCHAR fields to the
+	// size of the value because it does not know the schema.
+	for i, fieldDef := range ts.metadata.TableSchema.FieldDefs {
+		if fieldDef.TypeDef.Type == "VARCHAR" {
+			ts.curRecord.Columns[i].Size = fieldDef.TypeDef.Size
+		}
+	}
+
 	// Do not use GetRowKey() because this might be part of an update operation and the key could be modified
 	keyRec := &record.Record{
 		Columns: []*parser.TypeDef{ts.curRecord.Columns[0]},
