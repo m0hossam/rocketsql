@@ -33,7 +33,7 @@ func evalIntTerm(l int64, r int64, op string) bool {
 	case "<=":
 		return l <= r
 	default:
-		panic("unreachable state, the planner should have checked the semantics of the query beforehand")
+		panic("invalid operator")
 	}
 }
 
@@ -52,7 +52,7 @@ func evalFloatTerm(l float64, r float64, op string) bool {
 	case "<=":
 		return l <= r
 	default:
-		panic("unreachable state, the planner should have checked the semantics of the query beforehand")
+		panic("invalid operator")
 	}
 }
 
@@ -71,51 +71,51 @@ func evalStringTerm(l string, r string, op string) bool {
 	case "<=":
 		return l <= r
 	default:
-		panic("unreachable state, the planner should have checked the semantics of the query beforehand")
+		panic("invalid operator")
 	}
 }
 
-func (ss *SelectScan) resolveExpression(expr *parser.Expression) *parser.Constant {
+func (ss *SelectScan) resolveExpression(expr *parser.Expression) (*parser.Constant, error) {
 	if expr.IsField {
 		fieldType, err := ss.inputScan.GetType(expr.Field.Name)
 		if err != nil {
-			panic("unreachable state, the planner should have checked the semantics of the query beforehand")
+			return nil, err
 		}
 		switch fieldType {
 		case "SMALLINT", "INT", "BIGINT":
 			val, err := ss.inputScan.GetInt64(expr.Field.Name)
 			if err != nil {
-				panic("unreachable state, the planner should have checked the semantics of the query beforehand")
+				return nil, err
 			}
 			return &parser.Constant{
 				Type:   parser.IntegerToken,
 				IntVal: val,
-			}
+			}, nil
 		case "FLOAT", "DOUBLE":
 			val, err := ss.inputScan.GetFloat64(expr.Field.Name)
 			if err != nil {
-				panic("unreachable state, the planner should have checked the semantics of the query beforehand")
+				return nil, err
 			}
 			return &parser.Constant{
 				Type:     parser.FloatToken,
 				FloatVal: val,
-			}
+			}, nil
 		case "CHAR", "VARCHAR":
 			val, err := ss.inputScan.GetString(expr.Field.Name)
 			if err != nil {
-				panic("unreachable state, the planner should have checked the semantics of the query beforehand")
+				return nil, err
 			}
 			return &parser.Constant{
 				Type:   parser.StringToken,
 				StrVal: val,
-			}
+			}, nil
 		default:
-			panic("unreachable state, the planner should have checked the semantics of the query beforehand")
+			return nil, err
 		}
 	}
 
 	// Expression is a constant
-	return expr.Constant
+	return expr.Constant, nil
 }
 
 func (ss *SelectScan) isPredicateSatisfied(predicate *parser.Predicate) (bool, error) {
@@ -124,8 +124,16 @@ func (ss *SelectScan) isPredicateSatisfied(predicate *parser.Predicate) (bool, e
 	}
 
 	var termRes bool
-	leftConst := ss.resolveExpression(predicate.Term.Lhs)
-	rightConst := ss.resolveExpression(predicate.Term.Rhs)
+
+	leftConst, err := ss.resolveExpression(predicate.Term.Lhs)
+	if err != nil {
+		return false, err
+	}
+
+	rightConst, err := ss.resolveExpression(predicate.Term.Rhs)
+	if err != nil {
+		return false, err
+	}
 
 	switch {
 	case leftConst.Type == parser.IntegerToken && rightConst.Type == parser.IntegerToken:

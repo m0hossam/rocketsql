@@ -167,7 +167,7 @@ func (p *Processor) ExecuteInsert(insertData *parser.InsertData) error {
 	}
 
 	if len(insertData.Values) != len(metadata.TableSchema.FieldDefs) {
-		return errors.New("too few parameters in VALUES")
+		return errors.New("too few or too many parameters in VALUES")
 	}
 
 	// Get ordered column indices
@@ -182,7 +182,7 @@ func (p *Processor) ExecuteInsert(insertData *parser.InsertData) error {
 
 	if insertData.Fields != nil {
 		if len(insertData.Fields) != len(metadata.TableSchema.FieldDefs) {
-			return errors.New("too few fields")
+			return errors.New("too few or too many fields")
 		}
 
 		for i, f := range insertData.Fields {
