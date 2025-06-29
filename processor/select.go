@@ -118,42 +118,46 @@ func (ss *SelectScan) resolveExpression(expr *parser.Expression) *parser.Constan
 	return expr.Constant
 }
 
-func (ss *SelectScan) isPredicateSatisfied(predicate *parser.Predicate) bool {
+func (ss *SelectScan) isPredicateSatisfied(predicate *parser.Predicate) (bool, error) {
 	if predicate == nil {
-		return true
+		return true, nil
 	}
 
 	var termRes bool
 	leftConst := ss.resolveExpression(predicate.Term.Lhs)
 	rightConst := ss.resolveExpression(predicate.Term.Rhs)
 
-	if leftConst.Type != rightConst.Type {
-		panic("unreachable state, the planner should have checked the semantics of the query beforehand")
-	}
-
-	switch leftConst.Type {
-	case parser.IntegerToken:
+	switch {
+	case leftConst.Type == parser.IntegerToken && rightConst.Type == parser.IntegerToken:
 		termRes = evalIntTerm(leftConst.IntVal, rightConst.IntVal, predicate.Term.Op)
-	case parser.FloatToken:
+	case leftConst.Type == parser.IntegerToken && rightConst.Type == parser.FloatToken:
+		termRes = evalFloatTerm(float64(leftConst.IntVal), rightConst.FloatVal, predicate.Term.Op)
+	case leftConst.Type == parser.FloatToken && rightConst.Type == parser.IntegerToken:
+		termRes = evalFloatTerm(leftConst.FloatVal, float64(rightConst.IntVal), predicate.Term.Op)
+	case leftConst.Type == parser.FloatToken && rightConst.Type == parser.FloatToken:
 		termRes = evalFloatTerm(leftConst.FloatVal, rightConst.FloatVal, predicate.Term.Op)
-	case parser.StringToken:
+	case leftConst.Type == parser.StringToken && rightConst.Type == parser.StringToken:
 		termRes = evalStringTerm(leftConst.StrVal, rightConst.StrVal, predicate.Term.Op)
 	default:
-		panic("unreachable state, the planner should have checked the semantics of the query beforehand")
+		return false, errors.New("type mismatch in predicate")
 	}
 
 	if predicate.Next != nil {
+		nextRes, err := ss.isPredicateSatisfied(predicate.Next)
+		if err != nil {
+			return false, err
+		}
 		switch predicate.Op {
 		case "AND":
-			return termRes && ss.isPredicateSatisfied(predicate.Next)
+			return termRes && nextRes, nil
 		case "OR":
-			return termRes || ss.isPredicateSatisfied(predicate.Next)
+			return termRes || nextRes, nil
 		default:
-			panic("unreachable state, the planner should have checked the semantics of the query beforehand")
+			return false, errors.New("invalid operator")
 		}
 	}
 
-	return termRes
+	return termRes, nil
 }
 
 func (ss *SelectScan) BeforeFirst() error {
@@ -169,7 +173,12 @@ func (ss *SelectScan) Next() (bool, error) {
 			return false, err
 		}
 
-		if ss.isPredicateSatisfied(ss.predicate) {
+		predTrue, err := ss.isPredicateSatisfied(ss.predicate)
+		if err != nil {
+			return false, err
+		}
+
+		if predTrue {
 			return true, nil
 		}
 	}

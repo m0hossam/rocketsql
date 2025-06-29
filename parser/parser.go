@@ -2,6 +2,7 @@ package parser
 
 import (
 	"errors"
+	"math"
 )
 
 /* Grammar:
@@ -124,13 +125,13 @@ func (p *Parser) parseConstant() (*Constant, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &Constant{Type: IntegerToken, IntVal: i}, nil
+		return &Constant{Type: IntegerToken, IntVal: i, FloatVal: float64(i)}, nil
 	case p.lexer.matchFloatConstant():
 		f, err := p.lexer.eatFloatConstant()
 		if err != nil {
 			return nil, err
 		}
-		return &Constant{Type: FloatToken, FloatVal: f}, nil
+		return &Constant{Type: FloatToken, FloatVal: f, IntVal: int64(math.Round(f))}, nil
 	default:
 		return nil, errors.New("invalid syntax")
 	}
