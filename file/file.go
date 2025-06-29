@@ -35,12 +35,7 @@ func NewFileManager(dbFilePath string, dbPageSize int, dbHeaderSize int) (*FileM
 	}
 	if fileInfo.Size() == 0 {
 		emptyHeader := make([]byte, fm.dbHeaderSize)
-
 		if err = fm.Append(emptyHeader); err != nil {
-			return nil, err
-		}
-
-		if err := fm.dbFile.Sync(); err != nil {
 			return nil, err
 		}
 	}
@@ -70,8 +65,7 @@ func (fm *FileManager) Write(offset int64, data []byte) error {
 	if err != nil {
 		return err
 	}
-
-	return fm.dbFile.Sync()
+	return nil
 }
 
 func (fm *FileManager) Append(data []byte) error {
@@ -88,8 +82,7 @@ func (fm *FileManager) Append(data []byte) error {
 	if err != nil {
 		return err
 	}
-
-	return fm.dbFile.Sync()
+	return nil
 }
 
 func (fm *FileManager) Truncate(deleteSize int64) error {
@@ -98,12 +91,7 @@ func (fm *FileManager) Truncate(deleteSize int64) error {
 		return err
 	}
 	newFileSize := fileInfo.Size() - deleteSize
-
-	if err = fm.dbFile.Truncate(newFileSize); err != nil {
-		return err
-	}
-
-	return fm.dbFile.Sync()
+	return fm.dbFile.Truncate(newFileSize)
 }
 
 func WriteStringToFile(filePath string, fileContent string) error {
@@ -122,10 +110,6 @@ func WriteStringToFile(filePath string, fileContent string) error {
 
 func (fm *FileManager) Close() error {
 	if fm.dbFile != nil {
-		if err := fm.dbFile.Sync(); err != nil {
-			return err
-		}
-
 		return fm.dbFile.Close()
 	}
 	return nil
