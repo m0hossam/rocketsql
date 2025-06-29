@@ -767,6 +767,10 @@ func (btree *Btree) DumpBTreePage(pgNo uint32) string {
 	return btree.pgr.DumpPage(pgNo)
 }
 
+func (btree *Btree) Vacuum() (int, error) {
+	return btree.pgr.Vacuum()
+}
+
 func (btree *Btree) Close() error {
 	if btree.pgr != nil {
 		return btree.pgr.Close()

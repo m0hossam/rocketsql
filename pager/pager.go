@@ -3,6 +3,7 @@ package pager
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/m0hossam/rocketsql/file"
@@ -90,6 +91,66 @@ func (pgr *Pager) AllocatePage(pType uint8) (*page.Page, error) {
 	pg.Type = pType
 
 	return pg, nil
+}
+
+// Returns the number of bytes removed from the end of the DB file
+func (pgr *Pager) Vacuum() (int, error) {
+	initialNumPages := pgr.dbHeader.NumPages
+
+	// Append all page numbers of free pages to a list
+	cur := pgr.dbHeader.FirstFreePage
+	freePageNums := make([]uint32, 0)
+	for cur != page.DbNullPage {
+		freePageNums = append(freePageNums, cur)
+		pg, err := pgr.ReadPage(cur)
+		if err != nil {
+			return 0, err
+		}
+		cur = pg.LastPtr // Next free page
+	}
+
+	// Sort free page numbers in descending order
+	// so that we can remove contiguous pages from the end of the DB file
+	sort.Slice(freePageNums, func(i, j int) bool {
+		return freePageNums[i] > freePageNums[j]
+	})
+
+	// Remove contiguous free pages from the end of the DB file
+	for _, pgNo := range freePageNums {
+		if pgNo != pgr.dbHeader.NumPages { // Must be the last page in the DB
+			break
+		}
+
+		if err := pgr.fileManager.Truncate(page.DefaultPageSize); err != nil {
+			return 0, err
+		}
+		pgr.dbHeader.NumPages--
+		*pgr.newPgPtr--
+	}
+
+	// Reset the freelist
+	pgr.dbHeader.FirstFreePage = page.DbNullPage
+	pgr.dbHeader.NumFreePages = 0
+
+	for _, pgNo := range freePageNums {
+		// If page is not at the end of the DB file
+		if pgNo < pgr.dbHeader.NumPages {
+			pg, err := pgr.ReadPage(pgNo)
+			if err != nil {
+				return 0, err
+			}
+
+			// Add page to the linked-list of free pages
+			pg.LastPtr = pgr.dbHeader.FirstFreePage // Store the next free page no. in this page's rightmost pointer
+			pgr.dbHeader.FirstFreePage = pgNo
+			pgr.dbHeader.NumFreePages++
+			if err = pgr.WritePage(pg); err != nil { // Flush page to disk
+				return 0, err
+			}
+		}
+	}
+
+	return int(initialNumPages-pgr.dbHeader.NumPages) * page.DefaultPageSize, nil
 }
 
 func (pgr *Pager) FreePage(pgNo uint32) error {

@@ -78,6 +78,16 @@ func (db *Db) ExecuteMetaCommand(cmd string) string {
 		}
 	}
 
+	// .vacuum
+	if cmd == ".vacuum" {
+		bytesDeleted, err := db.btree.Vacuum()
+		if err != nil {
+			return err.Error()
+		}
+
+		return "Removed " + strconv.Itoa(bytesDeleted) + " bytes from the end of the DB file"
+	}
+
 	return "Invalid syntax"
 }
 
