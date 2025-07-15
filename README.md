@@ -44,6 +44,7 @@ UPDATE t SET a = 15 WHERE b = 'Guava'
 - `.dump_table <table name>` dumps the contents of a table's B-Tree in a text file
 - `.dump_page <page number>` dumps the contents of a page in a text file
 - `.rebuild_table <table name>` rebuilds and vacuums a table, useful after multiple deletions, saves space by freeing the empty pages
+- `.vacuum` removes all unused pages from the end of the database file, reducing its size, useful after using `.rebuild_table`
 
 Notes:
 - You can query the schema table using one of the following queries:
@@ -81,14 +82,12 @@ field is preceded by a 2-byte size field.
 ## Current Issues
 
 B-Tree:
-- The delete operation does not remove interior B-Tree keys or decrease the depth of the B-Tree. This is space wasteful, but it avoids the complexity of load balancing after deletion. We provide the `.rebuild_table <t>` meta-command for the user to use if they wish to save some space.
-- The delete operation does not free leaf pages after the become empty. Again, the user can fix this using `.rebuild_table` as per needed.
+- The delete operation does not remove interior B-Tree keys or decrease the depth of the B-Tree. This is space wasteful, but it avoids the complexity of load balancing after deletion. We provide the `.rebuild_table <t>` and `.vacuum` meta-commands for the user to use if they wish to save some space.
+- The delete operation does not free leaf pages after the become empty. Again, the user can fix this using `.rebuild_table` and `.vacuum` as per needed.
 - More testing is needed.
 
 SQL:
-- Query planning not implemented, semantics are mostly not checked
 - Query optimization not implemented
-- Passing integer parameters to float fields will result in an error
 - Semicolon termination not implemented, cannot do multi-line statements
 - `NULL` handling is not implemented
 
