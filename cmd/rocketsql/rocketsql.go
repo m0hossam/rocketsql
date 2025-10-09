@@ -14,10 +14,14 @@ func main() {
 
 	fmt.Println("rocketSQL> Welcome to RocketSQL")
 	fmt.Println("rocketSQL> Type '.exit' to quit")
-	fmt.Println("rocketSQL> Type '.open smth.db' to open/create a database")
+	fmt.Println("rocketSQL> You are connected to an in-memory database")
 
-	var rocketsql *db.Db
-	var err error
+	rocketsql, err := db.NewDb()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer rocketsql.Close()
 
 	// REPL: (Read - Eval - Print) Loop
 	for {
@@ -31,31 +35,6 @@ func main() {
 		// Quitting (meta-command)
 		if input == ".exit" {
 			break
-		}
-
-		// Opening a DB (meta-command)
-		if len(input) >= 7 {
-			if input[:6] == ".open " {
-				if rocketsql != nil {
-					if err = rocketsql.Close(); err != nil {
-						fmt.Println(err)
-						continue
-					}
-				}
-				rocketsql, err = db.NewDb(input[6:])
-				if err != nil {
-					fmt.Println(err)
-					continue
-				}
-				fmt.Printf("Connected to database '%s'\n", input[6:])
-				continue
-			}
-		}
-
-		// Ensure we are connected to a DB before executing SQL or meta-commands
-		if rocketsql == nil {
-			fmt.Println("rocketSQL> Type '.open dbname' to create/reopen a database")
-			continue
 		}
 
 		// Other meta-commands
@@ -96,12 +75,6 @@ func main() {
 
 				fmt.Println(resultTable.GetRow())
 			}
-		}
-	}
-
-	if rocketsql != nil {
-		if err = rocketsql.Close(); err != nil {
-			fmt.Println(err)
 		}
 	}
 

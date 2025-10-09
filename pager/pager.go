@@ -6,36 +6,29 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/m0hossam/rocketsql/file"
 	"github.com/m0hossam/rocketsql/page"
 	"github.com/m0hossam/rocketsql/record"
 )
 
 type Pager struct {
-	dbHeader    *page.DbHeader
-	fileManager *file.FileManager
-	newPgPtr    *uint32
+	dbHeader   *page.DbHeader
+	pageBuffer []byte
+	newPgPtr   *uint32
 }
 
-func NewPager(dbFilePath string) (*Pager, error) {
-	fm, err := file.NewFileManager(dbFilePath, page.DefaultPageSize, page.DbHeaderSize)
-	if err != nil {
-		return nil, err
+func NewPager() (*Pager, error) {
+	hdr := &page.DbHeader{
+		NumPages:      0,
+		FirstFreePage: 0,
+		NumFreePages:  0,
 	}
-
-	// Load DB Header
-	hdrBytes, err := fm.Read(0, page.DbHeaderSize)
-	if err != nil {
-		return nil, err
-	}
-	hdr := page.DeserializeDbHeader(hdrBytes)
 
 	newPgPtr := uint32(hdr.NumPages + 1)
 
 	pgr := &Pager{
-		dbHeader:    hdr,
-		fileManager: fm,
-		newPgPtr:    &newPgPtr,
+		dbHeader:   hdr,
+		pageBuffer: make([]byte, 1000*page.DefaultPageSize+page.DbHeaderSize),
+		newPgPtr:   &newPgPtr,
 	}
 
 	return pgr, nil
@@ -46,30 +39,33 @@ func (pgr *Pager) ReadPage(ptr uint32) (*page.Page, error) {
 		return nil, errors.New("page numbers start from 1")
 	}
 
-	off := int64((ptr-1)*page.DefaultPageSize + page.DbHeaderSize)
-	data, err := pgr.fileManager.Read(off, page.DefaultPageSize)
-	if err != nil {
-		return nil, err
+	off := (ptr-1)*page.DefaultPageSize + page.DbHeaderSize
+	end := off + page.DefaultPageSize
+
+	if int(end) > len(pgr.pageBuffer) {
+		return nil, errors.New("page number exceeding file range")
 	}
 
-	return page.DeserializePage(ptr, data), nil
+	return page.DeserializePage(ptr, pgr.pageBuffer[off:off+end]), nil
 }
 
 func (pgr *Pager) WritePage(pg *page.Page) error {
 	data := pg.SerializePage()
 
-	// Append page
-	if pg.Id > pgr.dbHeader.NumPages {
-		if err := pgr.fileManager.Append(data); err != nil {
-			return err
-		}
-		pgr.dbHeader.NumPages++
-		return nil
+	off := (pg.Id-1)*page.DefaultPageSize + page.DbHeaderSize
+	end := off + page.DefaultPageSize
+
+	if int(end) > len(pgr.pageBuffer) {
+		return errors.New("page number exceeding file range")
 	}
 
-	// Write page in-place
-	off := int64((pg.Id-1)*page.DefaultPageSize + page.DbHeaderSize)
-	return pgr.fileManager.Write(off, data)
+	// New page, increment DB header page count
+	if pg.Id > pgr.dbHeader.NumPages {
+		pgr.dbHeader.NumPages++
+	}
+
+	copy(pgr.pageBuffer[off:off+end], data)
+	return nil
 }
 
 func (pgr *Pager) AllocatePage(pType uint8) (*page.Page, error) {
@@ -121,9 +117,6 @@ func (pgr *Pager) Vacuum() (int, error) {
 			break
 		}
 
-		if err := pgr.fileManager.Truncate(page.DefaultPageSize); err != nil {
-			return 0, err
-		}
 		pgr.dbHeader.NumPages--
 		*pgr.newPgPtr--
 	}
@@ -154,11 +147,8 @@ func (pgr *Pager) Vacuum() (int, error) {
 }
 
 func (pgr *Pager) FreePage(pgNo uint32) error {
-	// Last page in DB, truncate DB file
+	// Last page in DB
 	if pgr.dbHeader.NumPages == pgNo {
-		if err := pgr.fileManager.Truncate(page.DefaultPageSize); err != nil {
-			return err
-		}
 		pgr.dbHeader.NumPages--
 		*pgr.newPgPtr--
 		return nil
@@ -174,7 +164,7 @@ func (pgr *Pager) FreePage(pgNo uint32) error {
 	pg.LastPtr = pgr.dbHeader.FirstFreePage // Store the next free page no. in this page's rightmost pointer
 	pgr.dbHeader.FirstFreePage = pgNo
 	pgr.dbHeader.NumFreePages++
-	return pgr.WritePage(pg) // Flush page to disk
+	return pgr.WritePage(pg)
 }
 
 func (pgr *Pager) GetDbHeader() *page.DbHeader {
@@ -211,10 +201,7 @@ func (pgr *Pager) DumpTable(tblName string, rootPgNo uint32) string {
 		level++
 	}
 
-	if err := file.WriteStringToFile(fmt.Sprintf("table_%s_dump.txt", tblName), sb.String()); err != nil {
-		return err.Error()
-	}
-	return fmt.Sprintf("Table '%s' dumped to 'table_%s_dump.txt'", tblName, tblName)
+	return sb.String()
 }
 
 func (pgr *Pager) DumpPage(pageNo uint32) string {
@@ -226,11 +213,7 @@ func (pgr *Pager) DumpPage(pageNo uint32) string {
 	}
 	dumpPage(pg, sb)
 
-	if err := file.WriteStringToFile(fmt.Sprintf("page_%d_dump.txt", pageNo), sb.String()); err != nil {
-		return err.Error()
-	}
-
-	return fmt.Sprintf("Page %d dumped to 'page_%d_dump.txt'", pageNo, pageNo)
+	return sb.String()
 }
 
 func dumpPage(pg *page.Page, sb *strings.Builder) {
@@ -273,13 +256,8 @@ func dumpPage(pg *page.Page, sb *strings.Builder) {
 }
 
 func (pgr *Pager) Close() error {
-	hdr := pgr.dbHeader.SerializeDbHeader()
-	if pgr.fileManager != nil {
-		// Flush DB header to disk
-		if err := pgr.fileManager.Write(0, hdr); err != nil {
-			return err
-		}
-		return pgr.fileManager.Close()
-	}
+	pgr.dbHeader = nil
+	pgr.pageBuffer = nil
+	pgr.newPgPtr = nil
 	return nil
 }
