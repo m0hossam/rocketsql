@@ -1,3 +1,3 @@
 module github.com/m0hossam/rocketsql
 
-go 1.23.0
+go 1.24.3
