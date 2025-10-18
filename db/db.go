@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/m0hossam/rocketsql/btree"
+	"github.com/m0hossam/rocketsql/pager"
 	"github.com/m0hossam/rocketsql/parser"
 	"github.com/m0hossam/rocketsql/processor"
 )
@@ -87,6 +88,10 @@ func (db *Db) ExecuteMetaCommand(cmd string) string {
 	}
 
 	return "Invalid syntax"
+}
+
+func (db *Db) GetPager() *pager.Pager {
+	return db.btree.GetPager()
 }
 
 func (db *Db) Close() error {

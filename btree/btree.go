@@ -771,6 +771,10 @@ func (btree *Btree) Vacuum() (int, error) {
 	return btree.pgr.Vacuum()
 }
 
+func (btree *Btree) GetPager() *pager.Pager {
+	return btree.pgr
+}
+
 func (btree *Btree) Close() error {
 	if btree.pgr != nil {
 		return btree.pgr.Close()
