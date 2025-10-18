@@ -46,7 +46,7 @@ func (pgr *Pager) ReadPage(ptr uint32) (*page.Page, error) {
 		return nil, errors.New("page number exceeding file range")
 	}
 
-	return page.DeserializePage(ptr, pgr.pageBuffer[off:off+end]), nil
+	return page.DeserializePage(ptr, pgr.pageBuffer[off:end]), nil
 }
 
 func (pgr *Pager) WritePage(pg *page.Page) error {
@@ -64,7 +64,7 @@ func (pgr *Pager) WritePage(pg *page.Page) error {
 		pgr.dbHeader.NumPages++
 	}
 
-	copy(pgr.pageBuffer[off:off+end], data)
+	copy(pgr.pageBuffer[off:end], data)
 	return nil
 }
 
