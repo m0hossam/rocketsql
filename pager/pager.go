@@ -261,3 +261,59 @@ func (pgr *Pager) Close() error {
 	pgr.newPgPtr = nil
 	return nil
 }
+
+type Node struct {
+	Id       uint32
+	Type     uint8
+	Children []*Node
+}
+
+type Table struct {
+	Name string
+	Root *Node
+}
+
+func (pgr *Pager) GetTable(tblName string, rootPgNo uint32) (*Table, error) {
+	r, err := pgr.dfs(rootPgNo)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Table{
+		Name: tblName,
+		Root: r,
+	}, nil
+}
+
+func (pgr *Pager) dfs(pageNo uint32) (*Node, error) {
+	n := &Node{
+		Id: pageNo,
+	}
+	pg, err := pgr.ReadPage(n.Id)
+	if err != nil {
+		return nil, err
+	}
+	n.Type = pg.Type
+
+	if n.Type == page.LeafPage {
+		return n, nil
+	}
+
+	n.Children = make([]*Node, len(pg.CellPtrArr)+1)
+	for i := 0; i < len(pg.CellPtrArr); i++ {
+		childPgNo := page.BytesToUint32(pg.Cells[pg.CellPtrArr[i]].Value)
+		child, err := pgr.dfs(childPgNo)
+		if err != nil {
+			return nil, err
+		}
+		n.Children[i] = child
+	}
+
+	child, err := pgr.dfs(pg.LastPtr)
+	if err != nil {
+		return nil, err
+	}
+	n.Children[len(pg.CellPtrArr)] = child
+
+	return n, nil
+}

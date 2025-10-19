@@ -33,6 +33,7 @@ go.work.sum
 /cmd/example/
 /temp
 *.txt
+*.wasm
 
 # Do not ignore expected results of test cases
 !test_data/*.txt

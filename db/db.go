@@ -1,6 +1,7 @@
 package db
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/m0hossam/rocketsql/btree"
@@ -92,6 +93,51 @@ func (db *Db) ExecuteMetaCommand(cmd string) string {
 
 func (db *Db) GetPager() *pager.Pager {
 	return db.btree.GetPager()
+}
+
+func (db *Db) GetAllTables() ([]*pager.Table, error) {
+	tbls := make([]*pager.Table, 0)
+	_, scan, err := db.ExecuteSQL("SELECT * FROM rocketsql_schema")
+	if err != nil {
+		return nil, err
+	}
+
+	if scan == nil {
+		return nil, errors.New("no resultant table")
+	}
+
+	if err = scan.BeforeFirst(); err != nil {
+		return nil, err
+	}
+
+	for {
+		next, err := scan.Next()
+
+		if err != nil {
+			return nil, err
+		}
+
+		if !next {
+			break
+		}
+
+		tblName, err := scan.GetString("table_name")
+		if err != nil {
+			return nil, err
+		}
+		rootPgNo, err := scan.GetInt64("root_page_no")
+		if err != nil {
+			return nil, err
+		}
+
+		tbl, err := db.GetPager().GetTable(tblName, uint32(rootPgNo))
+		if err != nil {
+			return nil, err
+		}
+		tbls = append(tbls, tbl)
+	}
+
+	return tbls, nil
 }
 
 func (db *Db) Close() error {

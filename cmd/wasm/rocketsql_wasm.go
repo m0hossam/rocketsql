@@ -7,6 +7,7 @@ import (
 
 	"github.com/m0hossam/rocketsql/db"
 	"github.com/m0hossam/rocketsql/page"
+	"github.com/m0hossam/rocketsql/pager"
 	"github.com/m0hossam/rocketsql/record"
 )
 
@@ -150,6 +151,43 @@ func getAllPages(this js.Value, args []js.Value) interface{} {
 	return pgs
 }
 
+func jsNodeFromGo(n *pager.Node) js.Value {
+	jsNode := js.Global().Get("Object").New()
+	jsNode.Set("Id", n.Id)
+	if n.Type == page.InteriorPage {
+		jsNode.Set("Type", "Interior Node")
+	} else {
+		jsNode.Set("Type", "Leaf Node")
+	}
+
+	if n.Type == page.InteriorPage {
+		childrenArr := js.Global().Get("Array").New()
+		for _, child := range n.Children {
+			childrenArr.Call("push", jsNodeFromGo(child))
+		}
+		jsNode.Set("Children", childrenArr)
+	}
+
+	return jsNode
+}
+
+func getAllTables(this js.Value, args []js.Value) interface{} {
+	tbls := js.Global().Get("Array").New()
+	arr, err := rocketsql.GetAllTables()
+	if err != nil {
+		return fmt.Sprint(err)
+	}
+	for _, t := range arr {
+		tbl := js.Global().Get("Object").New()
+		tbl.Set("Name", t.Name)
+		if t.Root != nil {
+			tbl.Set("Root", jsNodeFromGo(t.Root))
+		}
+		tbls.Call("push", tbl)
+	}
+	return tbls
+}
+
 func main() {
 	fmt.Println("rocketSQL> Welcome to RocketSQL")
 	fmt.Println("rocketSQL> You are connected to an in-memory database")
@@ -164,6 +202,7 @@ func main() {
 	js.Global().Set("executeSQL", js.FuncOf(executeSQL))
 	js.Global().Set("getPage", js.FuncOf(getPage))
 	js.Global().Set("getAllPages", js.FuncOf(getAllPages))
+	js.Global().Set("getAllTables", js.FuncOf(getAllTables))
 
 	// Prevent exit
 	c := make(chan struct{})
