@@ -63,53 +63,53 @@ func executeSQL(this js.Value, args []js.Value) interface{} {
 
 func pageToJSON(pg *page.Page) js.Value {
 	obj := js.Global().Get("Object").New()
-	obj.Set("Id", pg.Id)
+	obj.Set("id", pg.Id)
 	if pg.Type == page.LeafPage {
-		obj.Set("Type", "Leaf Page")
+		obj.Set("type", "Leaf Page")
 	} else {
-		obj.Set("Type", "Interior Page")
+		obj.Set("type", "Interior Page")
 	}
-	obj.Set("CellArrOff", pg.CellArrOff)
-	obj.Set("NumFragBytes", pg.NumFragBytes)
-	obj.Set("LastPtr", pg.LastPtr)
-	obj.Set("NumCells", pg.NumCells)
+	obj.Set("cellArrOff", pg.CellArrOff)
+	obj.Set("numFragBytes", pg.NumFragBytes)
+	obj.Set("lastPtr", pg.LastPtr)
+	obj.Set("numCells", pg.NumCells)
 
 	freeBlocks := js.Global().Get("Array").New()
 	for pg.FreeList != nil {
 		freeBlock := js.Global().Get("Object").New()
-		freeBlock.Set("Offset", pg.FreeList.Offset)
-		freeBlock.Set("Size", pg.FreeList.Size)
+		freeBlock.Set("offset", pg.FreeList.Offset)
+		freeBlock.Set("size", pg.FreeList.Size)
 		if pg.FreeList.Next != nil {
-			freeBlock.Set("NextOff", pg.FreeList.Next.Offset)
+			freeBlock.Set("nextOff", pg.FreeList.Next.Offset)
 		} else {
-			freeBlock.Set("NextOff", page.DbNullPage)
+			freeBlock.Set("nextOff", page.DbNullPage)
 		}
 		freeBlocks.Call("push", freeBlock)
 		pg.FreeList = pg.FreeList.Next
 	}
-	obj.Set("FreeBlocks", freeBlocks)
+	obj.Set("freeBlocks", freeBlocks)
 
 	cellOffsets := js.Global().Get("Array").New()
 	for _, off := range pg.CellPtrArr {
 		cellOffsets.Call("push", off)
 	}
-	obj.Set("CellOffsets", cellOffsets)
+	obj.Set("cellOffsets", cellOffsets)
 
 	cells := js.Global().Get("Array").New()
 	for off, c := range pg.Cells {
 		cell := js.Global().Get("Object").New()
-		cell.Set("Offset", off)
+		cell.Set("offset", off)
 		keyRec, _ := record.NewRecord(c.Key)
-		cell.Set("Key", keyRec.ToString())
+		cell.Set("key", keyRec.ToString())
 		if pg.Type == page.LeafPage {
 			valRec, _ := record.NewRecord(c.Value)
-			cell.Set("Row", valRec.ToString())
+			cell.Set("row", valRec.ToString())
 		} else {
-			cell.Set("Ptr", page.BytesToUint32(c.Value))
+			cell.Set("ptr", page.BytesToUint32(c.Value))
 		}
 		cells.Call("push", cell)
 	}
-	obj.Set("Cells", cells)
+	obj.Set("cells", cells)
 
 	return obj
 }
@@ -153,11 +153,11 @@ func getAllPages(this js.Value, args []js.Value) interface{} {
 
 func jsNodeFromGo(n *pager.Node) js.Value {
 	jsNode := js.Global().Get("Object").New()
-	jsNode.Set("Id", n.Id)
+	jsNode.Set("id", n.Id)
 	if n.Type == page.InteriorPage {
-		jsNode.Set("Type", "Interior Node")
+		jsNode.Set("type", "Interior Node")
 	} else {
-		jsNode.Set("Type", "Leaf Node")
+		jsNode.Set("type", "Leaf Node")
 	}
 
 	if n.Type == page.InteriorPage {
@@ -165,7 +165,7 @@ func jsNodeFromGo(n *pager.Node) js.Value {
 		for _, child := range n.Children {
 			childrenArr.Call("push", jsNodeFromGo(child))
 		}
-		jsNode.Set("Children", childrenArr)
+		jsNode.Set("children", childrenArr)
 	}
 
 	return jsNode
@@ -179,9 +179,9 @@ func getAllTables(this js.Value, args []js.Value) interface{} {
 	}
 	for _, t := range arr {
 		tbl := js.Global().Get("Object").New()
-		tbl.Set("Name", t.Name)
+		tbl.Set("name", t.Name)
 		if t.Root != nil {
-			tbl.Set("Root", jsNodeFromGo(t.Root))
+			tbl.Set("root", jsNodeFromGo(t.Root))
 		}
 		tbls.Call("push", tbl)
 	}
