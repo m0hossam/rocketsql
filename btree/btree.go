@@ -236,19 +236,31 @@ func distributeCells(pg *page.Page, newCell page.Cell, newCellIndex int) ([]page
 
 	for i := 0; i < newCellIndex; i++ {
 		cell := pg.Cells[pg.CellPtrArr[i]]
-		cells[i] = cell
+		c := page.Cell{
+			Key:   append([]byte(nil), cell.Key...),
+			Value: append([]byte(nil), cell.Value...),
+		}
+		cells[i] = c
 
 		totalRequiredSpace += len(cell.Key) + len(cell.Value) + cellVarSizes + page.SizeOfCellOff
 		prefixRequiredSpace[i] = totalRequiredSpace
 	}
 
-	cells[newCellIndex] = newCell
+	c := page.Cell{
+		Key:   append([]byte(nil), newCell.Key...),
+		Value: append([]byte(nil), newCell.Value...),
+	}
+	cells[newCellIndex] = c
 	totalRequiredSpace += len(newCell.Key) + len(newCell.Value) + cellVarSizes + page.SizeOfCellOff
 	prefixRequiredSpace[newCellIndex] = totalRequiredSpace
 
 	for i := newCellIndex; i < len(pg.CellPtrArr); i++ {
 		cell := pg.Cells[pg.CellPtrArr[i]]
-		cells[i+1] = cell
+		c := page.Cell{
+			Key:   append([]byte(nil), cell.Key...),
+			Value: append([]byte(nil), cell.Value...),
+		}
+		cells[i+1] = c
 
 		totalRequiredSpace += len(cell.Key) + len(cell.Value) + cellVarSizes + page.SizeOfCellOff
 		prefixRequiredSpace[i+1] = totalRequiredSpace
