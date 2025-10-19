@@ -85,21 +85,21 @@ func DeserializePage(ptr uint32, b []byte) *Page {
 	p.FreeList = head
 
 	for i := 0; i < int(p.NumCells); i++ {
-		Offset := binary.BigEndian.Uint16(b[OffsetOfCellPtrArr+i*SizeOfCellOff : OffsetOfCellPtrArr+i*SizeOfCellOff+SizeOfCellOff])
+		offset := binary.BigEndian.Uint16(b[OffsetOfCellPtrArr+i*SizeOfCellOff : OffsetOfCellPtrArr+i*SizeOfCellOff+SizeOfCellOff])
 
-		KeySize := binary.BigEndian.Uint16(b[Offset : Offset+SizeOfCellKeySize])
+		keySize := binary.BigEndian.Uint16(b[offset : offset+SizeOfCellKeySize])
 		c := Cell{
-			Key: b[Offset+SizeOfCellKeySize : Offset+SizeOfCellKeySize+KeySize],
+			Key: append([]byte(nil), b[offset+SizeOfCellKeySize:offset+SizeOfCellKeySize+keySize]...),
 		}
 		if p.Type == LeafPage {
-			ValueSize := binary.BigEndian.Uint16(b[Offset+SizeOfCellKeySize+KeySize : Offset+SizeOfCellKeySize+KeySize+SizeOfCellValueSize])
-			c.Value = b[Offset+SizeOfCellKeySize+KeySize+SizeOfCellValueSize : Offset+SizeOfCellKeySize+KeySize+SizeOfCellValueSize+ValueSize]
+			valueSize := binary.BigEndian.Uint16(b[offset+SizeOfCellKeySize+keySize : offset+SizeOfCellKeySize+keySize+SizeOfCellValueSize])
+			c.Value = append([]byte(nil), b[offset+SizeOfCellKeySize+keySize+SizeOfCellValueSize:offset+SizeOfCellKeySize+keySize+SizeOfCellValueSize+valueSize]...)
 		} else {
-			c.Value = b[Offset+SizeOfCellKeySize+KeySize : Offset+SizeOfCellKeySize+KeySize+4] // uint32 page no.
+			c.Value = append([]byte(nil), b[offset+SizeOfCellKeySize+keySize:offset+SizeOfCellKeySize+keySize+4]...) // uint32 page no.
 		}
 
-		p.CellPtrArr = append(p.CellPtrArr, Offset)
-		p.Cells[Offset] = c
+		p.CellPtrArr = append(p.CellPtrArr, offset)
+		p.Cells[offset] = c
 	}
 
 	return p
